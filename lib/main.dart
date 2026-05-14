@@ -1,11 +1,27 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'presentation/screens/auth/login_screen.dart';
-import 'presentation/screens/auth/languages.dart';
-import 'presentation/screens/home/home_screen.dart';
+import 'core/theme/app_theme.dart';
+import 'features/auth/screens/login_screen.dart';
+import 'features/admin/screens/admin_login_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'package:provider/provider.dart';
+import 'core/providers/user_provider.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => UserProvider()..fetchUserData(),
+        ),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -14,24 +30,13 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Amingo - Login',
-      theme: ThemeData(
-        colorScheme: const ColorScheme.light(
-          primary: Color(0xFF775600),
-          secondary: Color(0xFF5C5B5B),
-          tertiary: Color(0xFFAF2046),
-          surface: Color(0xFFFFB300),
-          error: Color(0xFFB02500),
-          onPrimary: Color(0xFFFFF1DC),
-          onSecondary: Color(0xFFF5F2F1),
-          onSurface: Color(0xFF1A1600),
-          onError: Color(0xFFFFEFEC),
-        ),
-        useMaterial3: true,
-        fontFamily: 'BeVietnamPro',
-        scaffoldBackgroundColor: const Color(0xFFFFB300),
-      ),
-      home: const LoginScreen(),
+      title: 'Amingo - Language Learning',
+      theme: AppTheme.lightTheme,
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const LoginScreen(),
+        '/admin': (context) => const AdminLoginScreen(),
+      },
       debugShowCheckedModeBanner: false,
     );
   }

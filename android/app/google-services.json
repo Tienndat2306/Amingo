@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "128610348029",
+    "project_id": "amingo-230605",
+    "storage_bucket": "amingo-230605.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:128610348029:android:324ad3a3732c79e3a80794",
+        "android_client_info": {
+          "package_name": "com.example.amingo"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "128610348029-fmdhokk79r7uj8tlul9t3q38asbnjv5o.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.amingo",
+            "certificate_hash": "9f7b2fcafebbf262f3a6caecd5d33d31db23c34a"
+          }
+        },
+        {
+          "client_id": "128610348029-aarmhjgpmfd6qqlv37gd9v9lqg6r6l7q.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB9dPv05oe97GxqWCkY-RDQH911WC7LGVQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "128610348029-aarmhjgpmfd6qqlv37gd9v9lqg6r6l7q.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "128610348029-tgn98r6hhpm5q53t4ljp06mtodh6okb2.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.amingo"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

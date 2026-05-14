@@ -1,0 +1,73 @@
+import '../models/news_article.dart';
+
+class MockNewsData {
+  static List<NewsArticle> getMockNewsArticles() {
+    return [
+      NewsArticle(
+        id: '1',
+        title: 'Global Climate Summit Reaches Historic Agreement',
+        description: 'World leaders commit to reducing carbon emissions by 50% before 2030 in landmark deal.',
+        content: 'Full content here...',
+        category: 'World News',
+        readTime: '5 min read',
+        date: '2 hours ago',
+        imageUrl: 'https://picsum.photos/400/250?random=1',
+        isBreaking: true,
+        views: '15.2K',
+        createdAt: DateTime.now(),
+      ),
+      NewsArticle(
+        id: '2',
+        title: 'Tech Giants Announce AI Collaboration',
+        description: 'Major technology companies join forces to develop ethical AI guidelines.',
+        content: 'Full content here...',
+        category: 'Technology',
+        readTime: '4 min read',
+        date: '5 hours ago',
+        imageUrl: 'https://picsum.photos/400/250?random=2',
+        isBreaking: false,
+        views: '8.7K',
+        createdAt: DateTime.now(),
+      ),
+      NewsArticle(
+        id: '3',
+        title: 'New Language Learning Method Shows Promise',
+        description: 'Revolutionary approach to language acquisition yields impressive results in recent study.',
+        content: 'Full content here...',
+        category: 'Education',
+        readTime: '6 min read',
+        date: 'Yesterday',
+        imageUrl: 'https://picsum.photos/400/250?random=3',
+        isBreaking: true,
+        views: '12.3K',
+        createdAt: DateTime.now(),
+      ),
+      NewsArticle(
+        id: '4',
+        title: 'Cultural Exchange Program Expands Globally',
+        description: 'International student exchange initiatives reach record participation numbers.',
+        content: 'Full content here...',
+        category: 'Culture',
+        readTime: '3 min read',
+        date: 'Yesterday',
+        imageUrl: 'https://picsum.photos/400/250?random=4',
+        isBreaking: false,
+        views: '5.1K',
+        createdAt: DateTime.now(),
+      ),
+      NewsArticle(
+        id: '5',
+        title: 'Economic Outlook for 2024 Shows Positive Trends',
+        description: 'Global economy shows signs of recovery with emerging markets leading growth.',
+        content: 'Full content here...',
+        category: 'Business',
+        readTime: '7 min read',
+        date: '2 days ago',
+        imageUrl: 'https://picsum.photos/400/250?random=5',
+        isBreaking: false,
+        views: '9.8K',
+        createdAt: DateTime.now(),
+      ),
+    ];
+  }
+}
