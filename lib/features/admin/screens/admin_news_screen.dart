@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/news_article.dart';
-import '../../../data/mock/mock_news.dart';
+import '../../../data/services/article_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../../../features/news/screens/news_detail_screen.dart';
+
 
 class AdminNewsScreen extends StatefulWidget {
   const AdminNewsScreen({super.key});
@@ -14,14 +19,18 @@ class AdminNewsScreen extends StatefulWidget {
 class _AdminNewsScreenState extends State<AdminNewsScreen> {
   List<NewsArticle> _articles = [];
   bool _isLoading = true;
+  List<NewsArticle> _filteredArticles = [];
+  String _selectedCategory = 'All';
+
+  List<String> _categories = ['All'];
 
   final List<Color> _cardColors = [
-    const Color(0xFFE53935),  // Đỏ - World News
-    const Color(0xFF1E88E5),  // Xanh dương - Technology
-    const Color(0xFF43A047),  // Xanh lá - Education
-    const Color(0xFFFB8C00),  // Cam - Culture
-    const Color(0xFF8E24AA),  // Tím - Business
-    const Color(0xFF00ACC1),  // Xanh ngọc - Science
+    const Color(0xFFE53935),
+    const Color(0xFF1E88E5),
+    const Color(0xFF43A047),
+    const Color(0xFFFB8C00),
+    const Color(0xFF8E24AA),
+    const Color(0xFF00ACC1),
   ];
 
   @override
@@ -31,207 +40,380 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 500));
-    _articles = MockNewsData.getMockNewsArticles();
-    setState(() => _isLoading = false);
+    try {
+      final snapshot = await FirebaseFirestore
+          .instance
+          .collection('articles')
+          .orderBy(
+        'createdAt',
+        descending: true,
+      )
+          .get();
+      final articles = snapshot.docs.map((doc) {
+        return NewsArticle.fromFirestore(doc);
+      }).toList();
+
+      if (mounted) {
+        setState(() {
+          _articles = articles;
+          final dynamicCategories = articles.map((a) => a.category).toSet().toList();
+          dynamicCategories.sort();
+
+          _categories = ['All', ...dynamicCategories];
+          _filteredArticles = articles;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint(e.toString());
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Failed to load articles',
+            ),
+          ),
+        );
+      }
+    }
   }
 
-  void _addArticle() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Add news article feature coming soon')),
+  Future<void> _addArticle() async {
+    final TextEditingController urlController = TextEditingController();
+    bool isProcessing = false;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: !isProcessing,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Add Article from URL'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: urlController,
+                decoration: const InputDecoration(
+                  hintText: 'Enter article URL (e.g. NYTimes, BBC...)',
+                  border: OutlineInputBorder(),
+                ),
+                enabled: !isProcessing,
+              ),
+              if (isProcessing) ...[
+                const SizedBox(height: 20),
+                const CircularProgressIndicator(),
+                const SizedBox(height: 10),
+                const Text("Amingo is extracting article...", style: TextStyle(fontSize: 12)),
+              ]
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isProcessing ? null : () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: isProcessing ? null : () async {
+                final url = urlController.text.trim();
+                if (url.isEmpty) return;
+
+                setDialogState(() => isProcessing = true);
+
+                try {
+                  final apiUrl = Uri.parse('http://10.0.2.2:5000/extract-article');
+
+                  final response = await http.post(
+                    apiUrl,
+                    headers: {"Content-Type": "application/json"},
+                    body: jsonEncode({"url": url}),
+                  ).timeout(const Duration(seconds: 20));
+
+                  final result = jsonDecode(response.body);
+
+                  if (response.statusCode == 200) {
+                    Navigator.pop(context);
+                    _loadData();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Article added successfully!'), backgroundColor: Colors.green),
+                    );
+                  } else {
+                    throw Exception(result['message'] ?? 'Failed to fetch');
+                  }
+                } catch (e) {
+                  setDialogState(() => isProcessing = false);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
+                  );
+                }
+              },
+              child: const Text('Extract & Add'),
+            ),
+          ],
+        ),
+      ),
     );
+  }
+
+  Future<void> _deleteArticle(
+      String articleId,
+      ) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('articles')
+          .doc(articleId)
+          .delete();
+      setState(() {
+        _articles.removeWhere(
+              (article) =>
+          article.id == articleId,
+        );
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Article deleted successfully',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint(e.toString());
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Failed to delete article',
+          ),
+        ),
+      );
+    }
+  }
+
+  void _filterArticles() {
+    if (_selectedCategory == 'All') {
+      _filteredArticles = _articles;
+    } else {
+      _filteredArticles = _articles.where((article) => article.category == _selectedCategory).toList();
+    }
+    setState(() {});
+  }
+
+  void _onCategorySelected(String category) {
+    _selectedCategory = category;
+    _filterArticles();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Header
-        Container(
-          padding: const EdgeInsets.all(24),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'News Articles',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: _addArticle,
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Add Article'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                ),
-              ),
-            ],
-          ),
-        ),
+    final displayArticles = _selectedCategory == 'All'
+        ? _articles
+        : _articles.where((a) => a.category == _selectedCategory).toList();
 
-        // Content
-        Expanded(
-          child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              children: _articles.asMap().entries.map((entry) {
-                final index = entry.key;
-                final article = entry.value;
-                final cardColor = _cardColors[index % _cardColors.length];
-                return _buildNewsCard(article, cardColor);
-              }).toList(),
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildAdminHeader(),
+            _buildAdminCategoryFilter(),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : RefreshIndicator(
+                onRefresh: _loadData,
+                child: displayArticles.isEmpty
+                    ? const Center(child: Text('No articles found'))
+                    : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: displayArticles.length,
+                  itemBuilder: (context, index) => _buildAdminArticleCard(displayArticles[index]),
+                ),
+              ),
             ),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
-  Widget _buildNewsCard(NewsArticle article, Color cardColor) {
+  // 1. Header riêng cho Admin
+  Widget _buildAdminHeader() {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
+      padding: const EdgeInsets.all(20),
+      decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+        border: Border(bottom: BorderSide(color: Color(0xFFEEEEEE))),
+      ),
+      child: Row(
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Content Manager',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF1A1A1A),
+                ),
+              ),
+              Text(
+                'Total: ${_articles.length} articles',
+                style: GoogleFonts.plusJakartaSans(color: Colors.grey, fontSize: 13),
+              ),
+            ],
+          ),
+          const Spacer(),
+          ElevatedButton.icon(
+            onPressed: _addArticle,
+            icon: const Icon(Icons.add_rounded, size: 20),
+            label: const Text('Add New'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Header
-          Container(
-            height: 70,
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
+    );
+  }
+
+  Widget _buildAdminCategoryFilter() {
+    return Container(
+      height: 60,
+      color: Colors.white,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        itemCount: _categories.length,
+        itemBuilder: (context, index) {
+          final isSelected = _selectedCategory == _categories[index];
+          return GestureDetector(
+            onTap: () => setState(() => _selectedCategory = _categories[index]),
+            child: Container(
+              margin: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.primary : const Color(0xFFF1F3F5),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                _categories[index],
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? Colors.white : Colors.black87,
+                ),
               ),
             ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildAdminArticleCard(NewsArticle article) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ArticleDetailScreen(
+              article: article,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFEEEEEE)),
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                article.imageUrl,
+                width: 80,
+                height: 80,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  color: Colors.grey[200],
+                  width: 80, height: 80,
+                  child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 40,
-                    height: 40,
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(10),
+                      color: Colors.blue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(4),
                     ),
-                    child: const Icon(Icons.newspaper, color: Colors.white, size: 22),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          article.title,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          article.category,
-                          style: GoogleFonts.beVietnamPro(
-                            fontSize: 11,
-                            color: Colors.white.withValues(alpha: 0.9),
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      article.category,
+                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blue),
                     ),
                   ),
-                  if (article.isBreaking)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        'BREAKING',
-                        style: GoogleFonts.beVietnamPro(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: cardColor,
-                        ),
-                      ),
+                  const SizedBox(height: 4),
+                  Text(
+                    article.title,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: const Color(0xFF1A1A1A),
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${article.wordCount} words • ${article.difficulty}',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
                 ],
               ),
             ),
-          ),
-          // Body
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+
+            Column(
               children: [
-                Text(
-                  article.description,
-                  style: GoogleFonts.beVietnamPro(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined, color: Colors.blue, size: 20),
+                  onPressed: () {
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ArticleDetailScreen(
+                          article: article,
+                        ),
+                      ),
+                    );
+                  },
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Icon(Icons.access_time, size: 14, color: AppColors.textSecondary),
-                    const SizedBox(width: 4),
-                    Text(
-                      article.readTime,
-                      style: GoogleFonts.beVietnamPro(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    const Icon(Icons.visibility, size: 14, color: AppColors.textSecondary),
-                    const SizedBox(width: 4),
-                    Text(
-                      article.views,
-                      style: GoogleFonts.beVietnamPro(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-                      onPressed: () {},
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                  onPressed: () => _deleteArticle(article.id),
                 ),
               ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

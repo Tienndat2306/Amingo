@@ -17,11 +17,13 @@ class MenuItemData {
 class MenuSection extends StatelessWidget {
   final List<MenuItemData> menuItems;
   final VoidCallback onLogout;
+  final Function(String) onItemTap;
 
   const MenuSection({
     super.key,
     required this.menuItems,
     required this.onLogout,
+    required this.onItemTap,
   });
 
   @override
@@ -85,6 +87,9 @@ class MenuSection extends StatelessWidget {
       onTap: () {
         if (isLogout) {
           onLogout();
+        }
+        else {
+          onItemTap(item.title);
         }
       },
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),

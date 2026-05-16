@@ -4,10 +4,12 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/loading_widget.dart';
 import '../../../data/models/news_article.dart';
-import '../../../data/mock/mock_news.dart';
 import '../widgets/news_card.dart';
 import '../widgets/news_header.dart';
 import '../widgets/news_category_filter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'news_detail_screen.dart';
+import '../../../data/services/article_service.dart';
 
 class NewsScreen extends StatefulWidget {
   const NewsScreen({super.key});
@@ -17,12 +19,13 @@ class NewsScreen extends StatefulWidget {
 }
 
 class _NewsScreenState extends State<NewsScreen> {
+  final ArticleService _articleService = ArticleService();
   List<NewsArticle> _articles = [];
   List<NewsArticle> _filteredArticles = [];
   bool _isLoading = true;
   String _selectedCategory = 'All';
 
-  final List<String> _categories = ['All', 'World News', 'Technology', 'Education', 'Culture', 'Business', 'Science'];
+  List<String> _categories = ['All'];
 
   @override
   void initState() {
@@ -31,11 +34,45 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 500));
-    _articles = MockNewsData.getMockNewsArticles();
-    _filterArticles();
-    setState(() => _isLoading = false);
+    try {
+      final snapshot = await FirebaseFirestore
+          .instance
+          .collection('articles')
+          .orderBy(
+        'createdAt',
+        descending: true,
+      )
+          .get();
+      final articles = snapshot.docs.map((doc) {
+        return NewsArticle.fromFirestore(doc);
+      }).toList();
+
+      if (mounted) {
+        setState(() {
+          _articles = articles;
+          final dynamicCategories = articles.map((a) => a.category).toSet().toList();
+          dynamicCategories.sort();
+
+          _categories = ['All', ...dynamicCategories];
+          _filteredArticles = articles;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint(e.toString());
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Failed to load articles',
+            ),
+          ),
+        );
+      }
+    }
   }
 
   void _filterArticles() {
@@ -85,13 +122,34 @@ class _NewsScreenState extends State<NewsScreen> {
               onRefresh: _loadData,
               child: _filteredArticles.isEmpty
                   ? const Center(child: Text('No news articles found'))
-                  : ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                itemCount: _filteredArticles.length,
-                itemBuilder: (context, index) {
-                  return NewsCard(
-                    article: _filteredArticles[index],
-                    onTap: () {},
+                  : StreamBuilder<List<String>>(
+
+                stream: _articleService.getAlreadyReadArticles(),
+                builder: (context, readSnapshot) {
+
+                  final List<String> readArticleIds = readSnapshot.data ?? [];
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    itemCount: _filteredArticles.length,
+                    itemBuilder: (context, index) {
+                      final currentArticle = _filteredArticles[index];
+
+                      final bool isRead = readArticleIds.contains(currentArticle.id);
+
+                      return NewsCard(
+                        article: currentArticle,
+                        isRead: isRead,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ArticleDetailScreen(article: currentArticle,),
+                            ),
+                          );
+                        },
+                      );
+                    },
                   );
                 },
               ),

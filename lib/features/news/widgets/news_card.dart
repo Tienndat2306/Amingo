@@ -2,19 +2,38 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/news_article.dart';
+import '../../../data/services/article_service.dart';
 
-class NewsCard extends StatelessWidget {
+class NewsCard extends StatefulWidget {
   final NewsArticle article;
   final VoidCallback onTap;
+  final bool isRead;
 
   const NewsCard({
     super.key,
     required this.article,
     required this.onTap,
+    this.isRead = false,
   });
 
   @override
+  State<NewsCard> createState() => _NewsCardState();
+}
+
+class _NewsCardState extends State<NewsCard> {
+  final ArticleService _articleService = ArticleService();
+
+  bool _isMarkingAsRead = false;
+
+  @override
   Widget build(BuildContext context) {
+    final Color buttonBgColor = widget.isRead
+        ? const Color(0xFFD49A15)
+        : AppColors.primary.withValues(alpha: 0.1);
+
+    final Color buttonIconColor = widget.isRead
+        ? Colors.white
+        : AppColors.primary;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -22,7 +41,7 @@ class NewsCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -39,62 +58,17 @@ class NewsCard extends StatelessWidget {
                   topRight: Radius.circular(16),
                 ),
                 child: Image.network(
-                  article.imageUrl,
+                  widget.article.imageUrl,
                   height: 200,
                   width: double.infinity,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
                     return Container(
                       height: 200,
-                      color: AppColors.primary.withOpacity(0.1),
+                      color: AppColors.primary.withValues(alpha: 0.1),
                       child: const Icon(Icons.image_not_supported, size: 50, color: AppColors.primary),
                     );
                   },
-                ),
-              ),
-              if (article.isBreaking)
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.tertiary,
-                      borderRadius: BorderRadius.circular(100),
-                    ),
-                    child: Text(
-                      'BREAKING',
-                      style: GoogleFonts.beVietnamPro(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              Positioned(
-                bottom: 12,
-                right: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(100),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.visibility, size: 12, color: Colors.white),
-                      const SizedBox(width: 4),
-                      Text(
-                        article.views,
-                        style: GoogleFonts.beVietnamPro(
-                          fontSize: 10,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
               ),
             ],
@@ -109,11 +83,11 @@ class NewsCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
+                        color: AppColors.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(100),
                       ),
                       child: Text(
-                        article.category,
+                        widget.article.category,
                         style: GoogleFonts.beVietnamPro(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
@@ -124,26 +98,11 @@ class NewsCard extends StatelessWidget {
                     const SizedBox(width: 12),
                     const Icon(Icons.access_time, size: 12, color: AppColors.textSecondary),
                     const SizedBox(width: 4),
-                    Text(
-                      article.readTime,
-                      style: GoogleFonts.beVietnamPro(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      article.date,
-                      style: GoogleFonts.beVietnamPro(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  article.title,
+                  widget.article.title,
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
@@ -151,28 +110,25 @@ class NewsCard extends StatelessWidget {
                     height: 1.3,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  article.description,
-                  style: GoogleFonts.beVietnamPro(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
-                    height: 1.4,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
                 const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: onTap,
+                        onPressed: () async {
+                          widget.onTap();
+                          if (!widget.isRead && widget.article.id != null) {
+                            try {
+                              await _articleService.markAsRead(widget.article.id!);
+                            } catch (e) {
+                            }
+                          }
+                        },
                         icon: const Icon(Icons.play_lesson, size: 18),
                         label: const Text('Read Article'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.primary,
-                          side: BorderSide(color: AppColors.primary.withOpacity(0.3)),
+                          side: BorderSide(color: AppColors.primary.withValues(alpha: 0.3)),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
                           padding: const EdgeInsets.symmetric(vertical: 10),
                         ),
@@ -181,7 +137,7 @@ class NewsCard extends StatelessWidget {
                     const SizedBox(width: 12),
                     Container(
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
+                        color: AppColors.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(100),
                       ),
                       child: IconButton(
@@ -191,15 +147,44 @@ class NewsCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
+
                     Container(
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
+                        color: buttonBgColor,
                         borderRadius: BorderRadius.circular(100),
                       ),
-                      child: IconButton(
-                        icon: const Icon(Icons.share, size: 20),
-                        color: AppColors.primary,
-                        onPressed: () {},
+                      child: _isMarkingAsRead
+                          ? const SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: Padding(
+                          padding: EdgeInsets.all(14.0),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                          ),
+                        ),
+                      )
+                          : IconButton(
+                        icon: const Icon(Icons.done_all, size: 20),
+                        color: buttonIconColor,
+                        onPressed: widget.isRead
+                            ? null
+                            : () async {
+                          if (widget.article.id == null) return;
+
+                          setState(() => _isMarkingAsRead = true);
+
+                          try {
+                            await _articleService.markAsRead(widget.article.id!);
+                          } catch (e) {
+                            debugPrint('Lỗi lưu trạng thái đã đọc: $e');
+                          } finally {
+                            if (mounted) {
+                              setState(() => _isMarkingAsRead = false);
+                            }
+                          }
+                        },
                       ),
                     ),
                   ],

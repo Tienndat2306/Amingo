@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 import '../../../core/providers/user_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../save/screens/saved_lessons_screen.dart';
 
 
 // ============ MAIN SCREEN ============
@@ -94,13 +95,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              // 1. Đăng xuất khỏi Firebase
               await FirebaseAuth.instance.signOut();
               // 2. Xóa dữ liệu trong Provider
               if (mounted) {
                 Provider.of<UserProvider>(context, listen: false).clearUser();
               }
-              // 3. Quay về trang Login và xóa lịch sử chuyển trang
+
               if (mounted) {
                 Navigator.pushAndRemoveUntil(
                   context,
@@ -198,6 +198,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 MenuSection(
                   menuItems: _menuItems,
                   onLogout: _handleLogout,
+                  onItemTap: (itemTitle) {
+                    if (itemTitle == 'Saved Lessons') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SavedLessonsScreen(),
+                        ),
+                      );
+                    }
+                  },
                 ),
                 const SizedBox(height: 100),
               ],
