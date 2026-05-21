@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Custom Backend Secrets
+backend/extract_articles/firebase_key.json

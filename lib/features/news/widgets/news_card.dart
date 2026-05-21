@@ -8,12 +8,14 @@ class NewsCard extends StatefulWidget {
   final NewsArticle article;
   final VoidCallback onTap;
   final bool isRead;
+  final bool? isBookmarked;
 
   const NewsCard({
     super.key,
     required this.article,
     required this.onTap,
     this.isRead = false,
+    this.isBookmarked,
   });
 
   @override
@@ -135,16 +137,46 @@ class _NewsCardState extends State<NewsCard> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(100),
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.bookmark_border, size: 20),
-                        color: AppColors.primary,
-                        onPressed: () {},
-                      ),
+                    StreamBuilder<bool>(
+                      stream: _articleService.isArticleBookmarked(widget.article.id ?? ''),
+                      builder: (context, snapshot) {
+                        final bool isSaved = widget.isBookmarked ?? (snapshot.data ?? false);
+
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: isSaved
+                                ? Colors.orange.withValues(alpha: 0.1)
+                                : AppColors.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(100),
+                          ),
+                          child: IconButton(
+                            icon: Icon(
+                                isSaved ? Icons.bookmark : Icons.bookmark_border,
+                                size: 20
+                            ),
+                            color: isSaved ? Colors.orange : AppColors.primary,
+                            onPressed: () async {
+                              try {
+                                await _articleService.toggleBookmark(widget.article);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(isSaved ? 'Removed from bookmarks' : 'Added to bookmarks'),
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Error: ${e.toString()}')),
+                                  );
+                                }
+                              }
+                            },
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(width: 8),
 
@@ -178,7 +210,7 @@ class _NewsCardState extends State<NewsCard> {
                           try {
                             await _articleService.markAsRead(widget.article.id!);
                           } catch (e) {
-                            debugPrint('Lỗi lưu trạng thái đã đọc: $e');
+                            debugPrint('Failed to save article read status: $e');
                           } finally {
                             if (mounted) {
                               setState(() => _isMarkingAsRead = false);

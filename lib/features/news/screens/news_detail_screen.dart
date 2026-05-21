@@ -5,10 +5,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:audioplayers/audioplayers.dart';
 import '../../../data/services/article_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ArticleDetailScreen extends StatelessWidget {
   final NewsArticle article;
-  bool _isMarking = false;
 
   final ArticleService _articleService = ArticleService();
 
@@ -55,6 +56,32 @@ class ArticleDetailScreen extends StatelessWidget {
     if (url.isNotEmpty) {
       await _audioPlayer.play(UrlSource(url));
     }
+  }
+
+  String _extractAllDefinitions(List<dynamic> entries) {
+    StringBuffer buffer = StringBuffer();
+
+    for (var entry in entries) {
+      final List<dynamic> meanings = entry['meanings'] ?? [];
+
+      for (var meaning in meanings) {
+        final String partOfSpeech = meaning['partOfSpeech'] ?? '';
+        final List<dynamic> definitions = meaning['definitions'] ?? [];
+
+        buffer.write('[${partOfSpeech.toUpperCase()}] ');
+
+        List<String> defLines = [];
+        for (int i = 0; i < definitions.length && i < 3; i++) {
+          String defText = definitions[i]['definition'] ?? '';
+          defLines.add('${i + 1}. $defText');
+        }
+
+        buffer.write(defLines.join('; '));
+        buffer.write('\n');
+      }
+    }
+
+    return buffer.toString().trim();
   }
 
   @override
@@ -164,12 +191,18 @@ class ArticleDetailScreen extends StatelessWidget {
   }
 
   Widget _buildInteractiveParagraph(BuildContext context, String paragraph) {
-    final List<String> words = paragraph.split(' ');
+    String normalizedParagraph = paragraph
+        .replaceAll('—', ' ')
+        .replaceAll('-', ' ')
+        .replaceAll('/', ' ');
+
+    final List<String> words = normalizedParagraph.split(' ');
+
     return Wrap(
       spacing: 4.0,
       runSpacing: 6.0,
       children: words.map((word) {
-        final cleanWord = word.replaceAll(RegExp(r'[.,\/#!$%\^&\*;:{}=\-_`~()?]'), '');
+        final cleanWord = word.replaceAll(RegExp(r'[^a-zA-Z]'), '');
         return GestureDetector(
           onDoubleTap: () => _showDictionaryBottomSheet(context, cleanWord),
           child: Text(
@@ -188,7 +221,7 @@ class ArticleDetailScreen extends StatelessWidget {
   void _showDictionaryBottomSheet(BuildContext context, String word) {
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // Cho phép bottom sheet co giãn theo nội dung
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -206,16 +239,13 @@ class ArticleDetailScreen extends StatelessWidget {
         //       );
         //     }
         //
-        //     // Phân tích dữ liệu nhận được từ API
         //     final data = snapshot.data;
         //     String phonetic = "/.../";
         //     String definition = "No definition found for this word.";
         //
         //     if (data != null && data.isNotEmpty) {
-        //       // Lấy phiên âm
         //       phonetic = data['phonetic'] ?? (data['phonetics'] != null && data['phonetics'].isNotEmpty ? data['phonetics'][0]['text'] ?? '/.../' : '/.../');
         //
-        //       // Lấy lớp nghĩa đầu tiên tìm thấy trong mảng meanings
         //       if (data['meanings'] != null && data['meanings'].isNotEmpty) {
         //         final firstMeaning = data['meanings'][0];
         //         final partOfSpeech = firstMeaning['partOfSpeech'] ?? ''; // Danh từ, động từ...
@@ -226,7 +256,6 @@ class ArticleDetailScreen extends StatelessWidget {
         //         }
         //       }
         //     }
-        //
         //
         //     return Container(
         //       padding: const EdgeInsets.all(24),
@@ -258,7 +287,6 @@ class ArticleDetailScreen extends StatelessWidget {
         //                 icon: const Icon(Icons.add_circle_outline, size: 18),
         //                 label: const Text("Save Word"),
         //                 onPressed: () {
-        //                   // Kế thừa sự kiện lưu từ vựng vào Firestore của bạn ở đây
         //                   Navigator.pop(context);
         //                   ScaffoldMessenger.of(context).showSnackBar(
         //                     SnackBar(content: Text('Saved "$word" to vocabulary notebook!')),
@@ -290,8 +318,8 @@ class ArticleDetailScreen extends StatelessWidget {
         //     );
         //   },
         // );
-        // Trong _showDictionaryBottomSheet của bạn:
-        return FutureBuilder<List<dynamic>>( // Đổi thành List<dynamic>
+
+        return FutureBuilder<List<dynamic>>(
           future: fetchWordDefinition(word),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -356,11 +384,41 @@ class ArticleDetailScreen extends StatelessWidget {
                           ),
                         icon: const Icon(Icons.add_circle_outline, size: 18),
                         label: const Text("Save Word"),
-                        onPressed: () {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Saved "$word" to vocabulary notebook!')),
-                          );
+                        onPressed: () async {
+                          final user = FirebaseAuth.instance.currentUser;
+                          if (user == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please login to save words!'), backgroundColor: Colors.red),
+                            );
+                            return;
+                          }
+                          try {
+                            final String allDefinitions = _extractAllDefinitions(apiList);
+                            await FirebaseFirestore.instance.collection('saved_vocabulary').add({
+                              'userId': user.uid,
+                              'word': word,
+                              'pronunciation': phonetic,
+                              'definition': allDefinitions.isNotEmpty ? allDefinitions : 'No definition found.',
+                              'audioUrl': audioUrl,
+                              'savedAt': FieldValue.serverTimestamp(),
+                            });
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Saved "$word" to vocabulary notebook!'),
+                                  backgroundColor: const Color(0xFFD49A15),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                              );
+                            }
+                          }
                         },
                       ),
                     ],

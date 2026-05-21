@@ -16,7 +16,8 @@ class BottomNavBar extends StatelessWidget {
     NavItem(icon: Icons.school, label: 'Learn', index: 0),
     NavItem(icon: Icons.history_edu, label: 'Review', index: 1),
     NavItem(icon: Icons.local_fire_department, label: 'Streaks', index: 2),
-    NavItem(icon: Icons.person, label: 'Profile', index: 3),
+    NavItem(icon: Icons.search_outlined, label: 'Dictionary', index: 3),
+    NavItem(icon: Icons.person, label: 'Profile', index: 4),
   ];
 
   @override

@@ -5,6 +5,7 @@ import '../../../data/models/news_article.dart';
 import '../../news/widgets/news_card.dart';
 import '../../news/screens/news_detail_screen.dart';
 import 'empty_state_widget.dart';
+import '../../../data/services/article_service.dart';
 
 class SavedArticlesTab extends StatelessWidget {
   final String userId;
@@ -12,10 +13,13 @@ class SavedArticlesTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ArticleService articleService = ArticleService();
+
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
-          .collection('bookmarks')
+          .collection('saved_articles')
           .where('userId', isEqualTo: userId)
+          .orderBy('savedAt', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -31,21 +35,31 @@ class SavedArticlesTab extends StatelessWidget {
 
         final bookmarkedDocs = snapshot.data!.docs;
 
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          itemCount: bookmarkedDocs.length,
-          itemBuilder: (context, index) {
-            final NewsArticle article = NewsArticle.fromFirestore(bookmarkedDocs[index]);
+        return StreamBuilder<List<String>>(
+          stream: articleService.getAlreadyReadArticles(),
+          builder: (context, readSnapshot) {
+            final List<String> readArticleIds = readSnapshot.data ?? [];
 
-            return NewsCard(
-              article: article,
-              isRead: false,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ArticleDetailScreen(article: article),
-                  ),
+            return ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              itemCount: bookmarkedDocs.length,
+              itemBuilder: (context, index) {
+                final NewsArticle article = NewsArticle.fromFirestore(bookmarkedDocs[index]);
+
+                final bool isRead = readArticleIds.contains(article.id);
+
+                return NewsCard(
+                  article: article,
+                  isRead: isRead,
+                  isBookmarked: true,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ArticleDetailScreen(article: article),
+                      ),
+                    );
+                  },
                 );
               },
             );

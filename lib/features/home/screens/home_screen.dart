@@ -55,7 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
           BottomNavBar(
             selectedIndex: _selectedNavIndex,
             onItemSelected: (index) {
-              if (index == 3) {
+              if (index == 4) {
                 _navigateTo(const ProfileScreen());
               } else {
                 setState(() => _selectedNavIndex = index);

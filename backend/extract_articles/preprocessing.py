@@ -193,6 +193,10 @@ def detect_category(url, title, content):
             "medieval",
             "war",
             "empire"
+        ],
+
+        "Science": [
+            "science",
         ]
     }
 

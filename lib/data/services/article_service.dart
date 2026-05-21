@@ -106,7 +106,6 @@ class ArticleService {
     final String? userId = FirebaseAuth.instance.currentUser?.uid;
     final String currentUserId = userId ?? 'anonymous';
 
-    // Tạo một Document ID duy nhất kết hợp giữa userId và articleId
     final String docId = "${currentUserId}_$articleId";
 
     try {
@@ -132,8 +131,66 @@ class ArticleService {
         .where('userId', isEqualTo: currentUserId)
         .snapshots()
         .map((snapshot) {
-      // Gom tất cả các articleId thành một danh sách List<String>
       return snapshot.docs.map((doc) => doc['articleId'].toString()).toList();
+    });
+  }
+
+  // ==========================================
+  // BOOKMARK / SAVE ARTICLE MANAGEMENT
+  // ==========================================
+
+  Stream<bool> isArticleBookmarked(String articleId) {
+    final String userId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+
+    return _firestore
+        .collection('saved_articles')
+        .where('userId', isEqualTo: userId)
+        .where('id', isEqualTo: articleId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.isNotEmpty);
+  }
+
+  Future<void> toggleBookmark(NewsArticle article) async {
+    final String? userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) throw Exception('User not logged in');
+
+    String originalId = article.id;
+
+    final String customDocId = "${userId}_$originalId";
+    final docRef = _firestore.collection('saved_articles').doc(customDocId);
+
+    final docSnapshot = await docRef.get();
+
+    if (docSnapshot.exists) {
+      await docRef.delete();
+      print("Firebase: Successfully removed article $originalId from bookmarks");
+    } else {
+      await docRef.set({
+        'userId': userId,
+        'id': originalId,
+        'title': article.title,
+        'category': article.category,
+        'imageUrl': article.imageUrl,
+        'difficulty': article.difficulty,
+        'sections': article.sections.map((e) => e.toJson()).toList(),
+        'savedAt': FieldValue.serverTimestamp(),
+      });
+      print("Firebase: Successfully added article $originalId to bookmarks");
+    }
+  }
+
+  Stream<List<NewsArticle>> getSavedArticles() {
+    final String userId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+
+    return _firestore
+        .collection('saved_articles')
+        .where('userId', isEqualTo: userId)
+        .orderBy('savedAt', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        return NewsArticle.fromFirestore(doc);
+      }).toList();
     });
   }
 }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-// import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/loading_widget.dart';
@@ -8,7 +7,9 @@ import '../widgets/news_card.dart';
 import '../widgets/news_header.dart';
 import '../widgets/news_category_filter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'news_detail_screen.dart';
+import '../../save/widgets/saved_articles_tab.dart';
 import '../../../data/services/article_service.dart';
 
 class NewsScreen extends StatefulWidget {

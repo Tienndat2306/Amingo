@@ -69,7 +69,7 @@ class NewsArticle {
     final data = doc.data() as Map<String, dynamic>;
 
     return NewsArticle(
-      id: doc.id,
+      id: data['id'] ?? doc.id,
 
       title: data['title'] ?? '',
 
