@@ -1,36 +1,36 @@
 # Amingo
 
-Amingo la ung dung hoc tieng Anh xay dung bang Flutter, ho tro nguoi hoc luyen tu vung, ngu phap, nghe chep chinh ta, hoc qua video co phu de, doc tin tuc/bai viet tieng Anh va luu bai hoc yeu thich. Ung dung co them giao dien quan tri de quan ly noi dung hoc tap.
+Amingo is an English learning application built with Flutter. It helps learners practice vocabulary, grammar, listening dictation, video lessons with subtitles, English articles/news, and saved learning content. The project also includes an admin interface for managing learning materials.
 
-## Tinh nang chinh
+## Main Features
 
-### Nguoi dung
+### User
 
-- Dang ky, dang nhap bang email/password
-- Dang nhap xa hoi voi Google va Facebook
-- Chon ngon ngu hoc
-- Hoc tu vung theo bo tu
-- Luyen tap bang flashcard, trac nghiem, ghep cap, nghe va chinh ta
-- Hoc ngu phap theo chu de
-- Lam quiz ngu phap va luu tien do
-- Luyen nghe dictation
-- Xem video bai hoc YouTube kem phu de
-- Doc bai viet/tin tuc tieng Anh
-- Luu bai viet, video va tu vung yeu thich
-- Quan ly ho so ca nhan
+- Sign up and sign in with email/password
+- Social login with Google and Facebook
+- Select a learning language
+- Learn vocabulary by topic/set
+- Practice with flashcards, multiple choice, matching, listening, and spelling exercises
+- Learn grammar by topic
+- Take grammar quizzes and save progress
+- Practice listening dictation
+- Watch YouTube-based video lessons with subtitles
+- Read English articles/news
+- Save favorite articles, videos, and vocabulary
+- Manage user profile
 
 ### Admin
 
-- Dashboard thong ke du lieu Firestore
-- Quan ly bo tu vung va tu vung
-- Quan ly chu de ngu phap va cau hoi quiz
-- Quan ly topic/section/lesson nghe
-- Quan ly video bai hoc va phu de
-- Quan ly bai viet/tin tuc
+- Firestore data statistics dashboard
+- Manage vocabulary sets and words
+- Manage grammar topics and quiz questions
+- Manage listening topics, sections, and lessons
+- Manage video lessons and subtitles
+- Manage articles/news
 
-## Cong nghe su dung
+## Tech Stack
 
-| Nhom | Cong nghe |
+| Category | Technology |
 |---|---|
 | Frontend | Flutter, Dart |
 | State Management | Provider |
@@ -38,10 +38,10 @@ Amingo la ung dung hoc tieng Anh xay dung bang Flutter, ho tro nguoi hoc luyen t
 | Social Auth | Google Sign-In, Facebook Auth |
 | Media | YouTube Player, Audio Players, Image Picker, File Picker |
 | UI | Material 3, Google Fonts |
-| Backend phu tro | Python, Flask, BeautifulSoup, requests, firebase_admin, yt_dlp, OpenAI Whisper, deep_translator |
+| Supporting Backend | Python, Flask, BeautifulSoup, requests, firebase_admin, yt_dlp, OpenAI Whisper, deep_translator |
 | Database | Cloud Firestore |
 
-## Cau truc thu muc
+## Project Structure
 
 ```text
 Amingo/
@@ -90,74 +90,74 @@ Amingo/
 `-- firebase.json
 ```
 
-## Yeu cau he thong
+## Requirements
 
-Truoc khi chay du an, can cai dat:
+Before running the project, install:
 
 - Flutter SDK
 - Dart SDK `>=3.10.7 <4.0.0`
 - Firebase CLI
-- Android Studio hoac VS Code
-- Python 3 neu muon chay backend phu tro
-- Thiet bi gia lap hoac thiet bi that
+- Android Studio or VS Code
+- Python 3 if you want to run the supporting backend scripts
+- A physical device or emulator
 
-Kiem tra moi truong Flutter:
+Check your Flutter environment:
 
 ```bash
 flutter doctor
 ```
 
-## Cai dat du an
+## Installation
 
-Clone repository:
+Clone the repository:
 
 ```bash
-git clone https://github.com/your-username/amingo.git
-cd amingo
+git clone https://github.com/Tienndat2306/Amingo.git
+cd Amingo
 ```
 
-Cai dat dependencies Flutter:
+Install Flutter dependencies:
 
 ```bash
 flutter pub get
 ```
 
-## Cau hinh Firebase
+## Firebase Setup
 
-Du an su dung Firebase cho authentication, database va storage.
+This project uses Firebase for authentication, database, and storage.
 
-Can cau hinh cac dich vu sau trong Firebase Console:
+Enable and configure the following services in Firebase Console:
 
 - Firebase Authentication
 - Cloud Firestore
 - Firebase Storage
 - Google Sign-In
-- Facebook Login neu su dung dang nhap Facebook
+- Facebook Login, if Facebook authentication is used
 
-Sau khi cau hinh Firebase, tao lai file cau hinh:
+After configuring Firebase, regenerate the Firebase configuration file:
 
 ```bash
 flutterfire configure
 ```
 
-Lenh nay se tao hoac cap nhat file:
+This command creates or updates:
 
 ```text
 lib/firebase_options.dart
 ```
 
-## Cau hinh bien bi mat
+## Secret Configuration
 
-Khong commit cac file chua secret hoac service account key len GitHub.
+Do not commit secret files or Firebase service account keys to GitHub.
 
-Nhung file sau can duoc loai khoi Git:
+The following files should be excluded from Git:
 
 ```text
 backend/my_key.json
 backend/extract_articles/firebase_key.json
 ```
 
-Nen them vao `.gitignore`:
+Add them to `.gitignore`:
 
 ```gitignore
 backend/my_key.json
@@ -165,29 +165,29 @@ backend/extract_articles/firebase_key.json
 *.env
 ```
 
-Neu cac key nay da tung duoc commit, can rotate key tren Firebase Console.
+If these keys were already committed, rotate them in Firebase Console.
 
-## Chay ung dung
+## Run the App
 
-Chay tren thiet bi mac dinh:
+Run on the default device:
 
 ```bash
 flutter run
 ```
 
-Chay tren Chrome:
+Run on Chrome:
 
 ```bash
 flutter run -d chrome
 ```
 
-Chay tren Android:
+Run on Android:
 
 ```bash
 flutter run -d android
 ```
 
-## Build ung dung
+## Build
 
 Build Android APK:
 
@@ -207,27 +207,27 @@ Build Web:
 flutter build web
 ```
 
-## Backend phu tro
+## Supporting Backend
 
-Thu muc `backend/` chua cac script/API Python ho tro xu ly noi dung.
+The `backend/` directory contains Python scripts/APIs for content processing.
 
 ### Extract Article API
 
-File chinh:
+Main file:
 
 ```text
 backend/extract_articles/app.py
 ```
 
-Chuc nang:
+Responsibilities:
 
-- Nhan URL bai viet
-- Crawl noi dung HTML
-- Lam sach van ban
-- Phan loai category/difficulty
-- Luu bai viet vao Firestore
+- Receive an article URL
+- Crawl HTML content
+- Clean extracted text
+- Detect category and difficulty
+- Save the article to Firestore
 
-Chay API:
+Run the API:
 
 ```bash
 cd backend/extract_articles
@@ -236,32 +236,32 @@ python app.py
 
 ### Auto Subtitle Processor
 
-File chinh:
+Main file:
 
 ```text
 backend/auto_subtitle_processor.py
 ```
 
-Chuc nang:
+Responsibilities:
 
-- Quet cac video chua co phu de
-- Tai audio tu YouTube bang `yt_dlp`
-- Tao phu de bang Whisper
-- Dich phu de sang tieng Viet
-- Luu phu de vao Firestore
+- Scan videos without subtitles
+- Download audio from YouTube using `yt_dlp`
+- Generate subtitles with Whisper
+- Translate subtitles into Vietnamese
+- Save subtitles to Firestore
 
-Chay script:
+Run the script:
 
 ```bash
 cd backend
 python auto_subtitle_processor.py
 ```
 
-Luu y: hien du an chua co `requirements.txt`, nen can tu cai cac thu vien Python can thiet nhu Flask, BeautifulSoup, requests, firebase_admin, yt_dlp, Whisper va deep_translator.
+Note: the project currently does not include a `requirements.txt` file, so Python dependencies such as Flask, BeautifulSoup, requests, firebase_admin, yt_dlp, Whisper, and deep_translator must be installed manually.
 
 ## Firestore Collections
 
-Cac collection chinh:
+Main collections:
 
 ```text
 users
@@ -278,27 +278,27 @@ saved_videos
 saved_vocabulary
 ```
 
-Mot so du lieu phu nhu subtitle duoc luu trong subcollection, vi du:
+Some nested data, such as subtitles, is stored in subcollections. Example:
 
 ```text
 video_lessons/{videoId}/subtitles
 ```
 
-## Luong hoat dong chinh
+## Main Application Flows
 
 ### Authentication
 
-Ung dung khoi tao Firebase trong `lib/main.dart`, sau do mo man hinh dang nhap.
+The app initializes Firebase in `lib/main.dart`, then opens the login screen.
 
-Sau khi dang nhap thanh cong:
+After successful login:
 
-- Neu user co role `admin`, chuyen toi man hinh admin
-- Neu user chua chon ngon ngu, chuyen toi man hinh chon ngon ngu
-- Neu user da hoan tat thiet lap, chuyen toi man hinh home
+- If the user has the `admin` role, the app opens the admin dashboard
+- If the user has not selected a language, the app opens the language selection screen
+- If setup is complete, the app opens the home screen
 
 ### Vocabulary
 
-Luong hoc tu vung:
+Vocabulary learning flow:
 
 ```text
 HomeScreen
@@ -307,11 +307,11 @@ HomeScreen
 -> user_progress
 ```
 
-Tien do hoc duoc luu trong Firestore theo user.
+Learning progress is stored in Firestore per user.
 
 ### Grammar
 
-Luong hoc ngu phap:
+Grammar learning flow:
 
 ```text
 GrammarScreen
@@ -322,7 +322,7 @@ GrammarScreen
 
 ### Listening
 
-Luong luyen nghe:
+Listening practice flow:
 
 ```text
 ListeningTopicsScreen
@@ -333,7 +333,7 @@ ListeningTopicsScreen
 
 ### Video Lessons
 
-Luong hoc qua video:
+Video lesson flow:
 
 ```text
 VideoScreen
@@ -343,70 +343,70 @@ VideoScreen
 
 ### Admin CMS
 
-Admin co the quan ly noi dung hoc tap truc tiep tu giao dien admin.
+Admins can manage learning content directly from the admin interface.
 
-## Mot so file quan trong
+## Important Files
 
-| File | Chuc nang |
+| File | Purpose |
 |---|---|
-| `lib/main.dart` | Khoi tao Firebase, Provider va route chinh |
-| `lib/firebase_options.dart` | Cau hinh Firebase generated |
-| `lib/core/theme/app_theme.dart` | Theme nguoi dung va admin |
-| `lib/core/providers/user_provider.dart` | Quan ly du lieu user hien tai |
-| `lib/data/models/` | Chua model du lieu Firestore |
-| `lib/data/repositories/` | Chua logic truy cap du lieu |
-| `lib/features/auth/` | Dang nhap, dang ky, social login |
-| `lib/features/vocabulary/` | Man hinh hoc tu vung |
-| `lib/features/lesson/` | Cac mode hoc tu vung |
-| `lib/features/grammar/` | Hoc va quiz ngu phap |
-| `lib/features/listening/` | Luyen nghe dictation |
-| `lib/features/video/` | Video lesson va phu de |
-| `lib/features/news/` | Bai viet/tin tuc |
-| `lib/features/admin/` | Giao dien quan tri |
-| `backend/extract_articles/app.py` | API crawl va luu bai viet |
-| `backend/auto_subtitle_processor.py` | Script tao phu de video tu dong |
+| `lib/main.dart` | Initializes Firebase, Provider, and the main route |
+| `lib/firebase_options.dart` | Generated Firebase configuration |
+| `lib/core/theme/app_theme.dart` | User and admin themes |
+| `lib/core/providers/user_provider.dart` | Manages current user data |
+| `lib/data/models/` | Firestore data models |
+| `lib/data/repositories/` | Data access logic |
+| `lib/features/auth/` | Login, registration, and social login |
+| `lib/features/vocabulary/` | Vocabulary learning screens |
+| `lib/features/lesson/` | Vocabulary practice modes |
+| `lib/features/grammar/` | Grammar lessons and quizzes |
+| `lib/features/listening/` | Listening dictation |
+| `lib/features/video/` | Video lessons and subtitles |
+| `lib/features/news/` | Articles/news |
+| `lib/features/admin/` | Admin interface |
+| `backend/extract_articles/app.py` | API for crawling and saving articles |
+| `backend/auto_subtitle_processor.py` | Script for automatically generating video subtitles |
 
-## Kiem thu
+## Testing
 
-Chay test Flutter:
+Run Flutter tests:
 
 ```bash
 flutter test
 ```
 
-Hien du an moi co test co ban. Nen bo sung test cho:
+The project currently has only basic tests. Recommended test coverage includes:
 
 - Auth routing
-- Mapping model Firestore
+- Firestore model mapping
 - Vocabulary progress
 - Grammar quiz scoring
 - Saved articles/videos/vocabulary
 - Repository/service logic
 
-## Luu y bao mat
+## Security Notes
 
-- Khong commit Firebase service account key
-- Khong hard-code admin password trong source code production
-- Nen dung Firebase Security Rules de gioi han quyen doc/ghi
-- Nen rotate key neu secret da tung duoc dua len GitHub
-- Nen dung bien moi truong hoac secret manager cho backend
+- Do not commit Firebase service account keys
+- Do not hard-code admin passwords in production source code
+- Use Firebase Security Rules to restrict read/write access
+- Rotate secrets if they were ever pushed to GitHub
+- Use environment variables or a secret manager for backend credentials
 
-## Huong phat trien tiep theo
+## Roadmap
 
-- Chuan hoa toan bo truy cap Firestore qua repository/service
-- Hoan thien cac API con tra du lieu rong trong video repository
-- Upload anh vocabulary len Firebase Storage thay vi luu base64
-- Loai bo mock data khong con dung
-- Them test cho cac luong hoc chinh
-- Cai thien bao mat admin va Firebase rules
+- Standardize Firestore access through repositories/services
+- Complete unfinished video repository APIs that currently return empty data
+- Upload vocabulary images to Firebase Storage instead of storing base64 data
+- Remove unused mock data
+- Add tests for the main learning flows
+- Improve admin authentication and Firebase security rules
 
-## Tac gia
+## Author
 
-Du an Amingo duoc phat trien phuc vu muc tieu hoc tieng Anh thong qua nhieu hinh thuc tuong tac: tu vung, ngu phap, nghe, video va doc hieu.
+Amingo is developed as an English learning project that combines vocabulary, grammar, listening, video-based learning, and reading practice.
 
 ## License
 
-Them license phu hop cho du an, vi du:
+Add the appropriate license for this project, for example:
 
 ```text
 MIT License
