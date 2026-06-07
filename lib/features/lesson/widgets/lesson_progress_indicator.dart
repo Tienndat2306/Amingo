@@ -37,7 +37,11 @@ class LessonProgressIndicator extends StatelessWidget {
               ),
               Row(
                 children: [
-                  const Icon(Icons.check_circle, size: 16, color: AppColors.success),
+                  const Icon(
+                    Icons.check_circle,
+                    size: 16,
+                    color: AppColors.success,
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     '$correctAnswers',
@@ -68,7 +72,9 @@ class LessonProgressIndicator extends StatelessWidget {
             child: LinearProgressIndicator(
               value: progress,
               backgroundColor: const Color(0xFFF0D273),
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                AppColors.primary,
+              ),
               minHeight: 6,
             ),
           ),

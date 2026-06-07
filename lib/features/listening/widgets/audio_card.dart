@@ -1,132 +1,114 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../data/models/audio_lesson.dart';
+import '../../../data/models/listening_lesson.dart';
 
 class AudioCard extends StatelessWidget {
-  final AudioLesson lesson;
+  final ListeningLesson lesson;
   final VoidCallback onTap;
+  final bool isCompleted;
 
   const AudioCard({
     super.key,
     required this.lesson,
     required this.onTap,
+    this.isCompleted = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+    const textBrown = Color(0xFF4E342E);
+    const subTextBrown = Color(0xFF8D6E63);
+    const learnedGreen = Color(0xFF2E7D32);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.brown.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ListTile(
+        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 10,
         ),
-        child: Row(
-          children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [AppColors.primary, const Color(0xFFFDBC13)],
+        leading: Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: isCompleted
+                ? const Color(0xFFE8F5E9)
+                : const Color(0xFFF5EBE6),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            isCompleted ? Icons.check_rounded : Icons.headphones_rounded,
+            color: isCompleted ? learnedGreen : textBrown,
+          ),
+        ),
+        title: Text(
+          lesson.title,
+          style: const TextStyle(
+            color: textBrown,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Row(
+            children: [
+              Flexible(
+                child: Text(
+                  'Level: ${lesson.vocabLevel} - ${lesson.totalParts} parts',
+                  style: const TextStyle(color: subTextBrown, fontSize: 13),
+                  overflow: TextOverflow.ellipsis,
                 ),
-                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(lesson.icon, color: Colors.white, size: 30),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          lesson.title,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ),
-                      if (lesson.isNew)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.tertiary,
-                            borderRadius: BorderRadius.circular(100),
-                          ),
-                          child: Text(
-                            'NEW',
-                            style: GoogleFonts.beVietnamPro(
-                              fontSize: 8,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                    ],
+              if (isCompleted) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    lesson.subtitle,
-                    style: GoogleFonts.beVietnamPro(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8F5E9),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Text(
+                    'Learned',
+                    style: TextStyle(
+                      color: learnedGreen,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.access_time, size: 14, color: AppColors.textSecondary),
-                      const SizedBox(width: 4),
-                      Text(
-                        lesson.duration,
-                        style: GoogleFonts.beVietnamPro(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      if (lesson.isPopular)
-                        Row(
-                          children: [
-                            Icon(Icons.trending_up, size: 14, color: AppColors.tertiary),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Popular',
-                              style: GoogleFonts.beVietnamPro(
-                                fontSize: 11,
-                                color: AppColors.tertiary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-              icon: Icon(Icons.play_circle, size: 40, color: AppColors.primary),
-              onPressed: onTap,
-            ),
-          ],
+                ),
+              ],
+            ],
+          ),
+        ),
+        trailing: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: isCompleted
+                ? const Color(0xFFE8F5E9)
+                : const Color(0xFFFFF9C4),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            isCompleted ? Icons.check_circle_rounded : Icons.play_arrow_rounded,
+            color: isCompleted ? learnedGreen : const Color(0xFFFFB300),
+            size: 24,
+          ),
         ),
       ),
     );

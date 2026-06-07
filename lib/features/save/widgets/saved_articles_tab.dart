@@ -9,7 +9,13 @@ import '../../../data/services/article_service.dart';
 
 class SavedArticlesTab extends StatelessWidget {
   final String userId;
-  const SavedArticlesTab({super.key, required this.userId});
+  final String searchQuery;
+
+  const SavedArticlesTab({
+    super.key,
+    required this.userId,
+    this.searchQuery = '',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +39,20 @@ class SavedArticlesTab extends StatelessWidget {
           );
         }
 
-        final bookmarkedDocs = snapshot.data!.docs;
+        final query = searchQuery.toLowerCase().trim();
+        final bookmarkedDocs = snapshot.data!.docs.where((doc) {
+          if (query.isEmpty) return true;
+          final data = doc.data() as Map<String, dynamic>;
+          final title = data['title']?.toString().toLowerCase() ?? '';
+          return title.contains(query);
+        }).toList();
+
+        if (bookmarkedDocs.isEmpty) {
+          return const EmptyStateWidget(
+            icon: Icons.search_off,
+            message: 'No saved articles match your search.',
+          );
+        }
 
         return StreamBuilder<List<String>>(
           stream: articleService.getAlreadyReadArticles(),

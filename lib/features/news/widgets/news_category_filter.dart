@@ -37,7 +37,7 @@ class NewsCategoryFilter extends StatelessWidget {
                   border: Border.all(
                     color: isSelected
                         ? Colors.transparent
-                        : const Color(0xFFC1AC6C).withOpacity(0.3),
+                        : const Color(0xFFC1AC6C).withValues(alpha: 0.3),
                   ),
                 ),
                 child: Text(

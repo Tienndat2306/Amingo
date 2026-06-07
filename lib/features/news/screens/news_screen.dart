@@ -25,8 +25,16 @@ class _NewsScreenState extends State<NewsScreen> {
   List<NewsArticle> _filteredArticles = [];
   bool _isLoading = true;
   String _selectedCategory = 'All';
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   List<String> _categories = ['All'];
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -77,16 +85,27 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   void _filterArticles() {
-    if (_selectedCategory == 'All') {
-      _filteredArticles = _articles;
-    } else {
-      _filteredArticles = _articles.where((article) => article.category == _selectedCategory).toList();
-    }
+    final query = _searchQuery.toLowerCase().trim();
+
+    _filteredArticles = _articles.where((article) {
+      final matchesCategory =
+          _selectedCategory == 'All' || article.category == _selectedCategory;
+      final matchesSearch =
+          query.isEmpty || article.title.toLowerCase().contains(query);
+
+      return matchesCategory && matchesSearch;
+    }).toList();
+
     setState(() {});
   }
 
   void _onCategorySelected(String category) {
     _selectedCategory = category;
+    _filterArticles();
+  }
+
+  void _onSearchChanged(String value) {
+    _searchQuery = value;
     _filterArticles();
   }
 
@@ -115,6 +134,58 @@ class _NewsScreenState extends State<NewsScreen> {
             categories: _categories,
             selectedCategory: _selectedCategory,
             onCategorySelected: _onCategorySelected,
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+            child: TextField(
+              controller: _searchController,
+              onChanged: _onSearchChanged,
+              style: const TextStyle(color: AppColors.textPrimary),
+              decoration: InputDecoration(
+                hintText: 'Search articles by title...',
+                hintStyle: TextStyle(
+                  color: AppColors.textSecondary.withValues(alpha: 0.75),
+                ),
+                prefixIcon: const Icon(Icons.search, color: AppColors.primary),
+                suffixIcon: _searchQuery.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(
+                          Icons.clear_rounded,
+                          color: AppColors.primary,
+                        ),
+                        onPressed: () {
+                          _searchController.clear();
+                          _onSearchChanged('');
+                        },
+                      ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(
+                    color: AppColors.primary,
+                    width: 1.4,
+                  ),
+                ),
+              ),
+            ),
           ),
           Expanded(
             child: _isLoading

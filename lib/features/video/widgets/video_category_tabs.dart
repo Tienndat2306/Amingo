@@ -5,7 +5,7 @@ import '../../../core/constants/app_colors.dart';
 class VideoCategoryTabs extends StatelessWidget {
   final List<String> categories;
   final String selectedCategory;
-  final Function(String) onCategorySelected;
+  final ValueChanged<String> onCategorySelected;
 
   const VideoCategoryTabs({
     super.key,
@@ -25,6 +25,7 @@ class VideoCategoryTabs extends StatelessWidget {
         itemBuilder: (context, index) {
           final category = categories[index];
           final isSelected = selectedCategory == category;
+
           return Padding(
             padding: const EdgeInsets.only(right: 12),
             child: GestureDetector(

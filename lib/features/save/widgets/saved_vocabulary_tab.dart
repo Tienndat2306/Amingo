@@ -8,7 +8,13 @@ import 'package:audioplayers/audioplayers.dart';
 
 class SavedVocabularyTab extends StatefulWidget {
   final String userId;
-  const SavedVocabularyTab({super.key, required this.userId});
+  final String searchQuery;
+
+  const SavedVocabularyTab({
+    super.key,
+    required this.userId,
+    this.searchQuery = '',
+  });
 
   @override
   State<SavedVocabularyTab> createState() => _SavedVocabularyTabState();
@@ -55,7 +61,21 @@ class _SavedVocabularyTabState extends State<SavedVocabularyTab> {
           );
         }
 
-        final vocabDocs = snapshot.data!.docs;
+        final query = widget.searchQuery.toLowerCase().trim();
+        final vocabDocs = snapshot.data!.docs.where((doc) {
+          if (query.isEmpty) return true;
+          final data = doc.data() as Map<String, dynamic>;
+          final word = data['word']?.toString().toLowerCase() ?? '';
+          final definition = data['definition']?.toString().toLowerCase() ?? '';
+          return word.contains(query) || definition.contains(query);
+        }).toList();
+
+        if (vocabDocs.isEmpty) {
+          return const EmptyStateWidget(
+            icon: Icons.search_off,
+            message: 'No saved vocabulary matches your search.',
+          );
+        }
 
         return ListView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 20),

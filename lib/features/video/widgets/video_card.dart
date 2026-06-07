@@ -2,21 +2,39 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/video_lesson.dart';
+import '../../../data/services/video_service.dart';
 
-class VideoCard extends StatelessWidget {
+class VideoCard extends StatefulWidget {
   final VideoLesson video;
   final VoidCallback onTap;
+  final bool isWatched;
 
   const VideoCard({
     super.key,
     required this.video,
     required this.onTap,
+    this.isWatched = false,
   });
 
   @override
+  State<VideoCard> createState() => _VideoCardState();
+}
+
+class _VideoCardState extends State<VideoCard> {
+  final VideoService _videoService = VideoService();
+  bool _isMarkingAsWatched = false;
+
+  @override
   Widget build(BuildContext context) {
+    final Color watchedBgColor = widget.isWatched
+        ? const Color(0xFFD49A15)
+        : AppColors.primary.withValues(alpha: 0.1);
+    final Color watchedIconColor = widget.isWatched
+        ? Colors.white
+        : AppColors.primary;
+
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
@@ -41,7 +59,7 @@ class VideoCard extends StatelessWidget {
               child: Stack(
                 children: [
                   Image.network(
-                    video.thumbnail,
+                    widget.video.thumbnail,
                     height: 180,
                     width: double.infinity,
                     fit: BoxFit.cover,
@@ -92,7 +110,7 @@ class VideoCard extends StatelessWidget {
                           const Icon(Icons.access_time, size: 12, color: Colors.white),
                           const SizedBox(width: 4),
                           Text(
-                            video.duration,
+                            widget.video.duration,
                             style: GoogleFonts.beVietnamPro(
                               fontSize: 11,
                               color: Colors.white,
@@ -116,7 +134,7 @@ class VideoCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    video.title,
+                    widget.video.title,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
@@ -126,7 +144,7 @@ class VideoCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    video.description,
+                    widget.video.description,
                     style: GoogleFonts.beVietnamPro(
                       fontSize: 13,
                       color: AppColors.textSecondary,
@@ -141,7 +159,7 @@ class VideoCard extends StatelessWidget {
                       const Icon(Icons.visibility, size: 14, color: AppColors.textSecondary),
                       const SizedBox(width: 4),
                       Text(
-                        video.views,
+                        widget.video.views,
                         style: GoogleFonts.beVietnamPro(
                           fontSize: 11,
                           color: AppColors.textSecondary,
@@ -151,27 +169,121 @@ class VideoCard extends StatelessWidget {
                       const Icon(Icons.access_time, size: 14, color: AppColors.textSecondary),
                       const SizedBox(width: 4),
                       Text(
-                        video.duration,
+                        widget.video.duration,
                         style: GoogleFonts.beVietnamPro(
                           fontSize: 11,
                           color: AppColors.textSecondary,
                         ),
                       ),
                       const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.watch_later_outlined, size: 20),
-                        color: AppColors.primary,
-                        onPressed: () {},
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: watchedBgColor,
+                          borderRadius: BorderRadius.circular(100),
+                        ),
+                        child: _isMarkingAsWatched
+                            ? const SizedBox(
+                                width: 40,
+                                height: 40,
+                                child: Padding(
+                                  padding: EdgeInsets.all(11),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      AppColors.primary,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : IconButton(
+                                icon: const Icon(Icons.done_all, size: 20),
+                                color: watchedIconColor,
+                                onPressed: widget.isWatched
+                                    ? null
+                                    : () async {
+                                        setState(
+                                          () => _isMarkingAsWatched = true,
+                                        );
+                                        try {
+                                          await _videoService.markAsWatched(
+                                            widget.video.id,
+                                          );
+                                        } catch (e) {
+                                          debugPrint(
+                                            'Failed to save video watched status: $e',
+                                          );
+                                        } finally {
+                                          if (mounted) {
+                                            setState(
+                                              () =>
+                                                  _isMarkingAsWatched = false,
+                                            );
+                                          }
+                                        }
+                                      },
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 40,
+                                  minHeight: 40,
+                                ),
+                              ),
                       ),
                       const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.share, size: 20),
-                        color: AppColors.primary,
-                        onPressed: () {},
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
+                      StreamBuilder<bool>(
+                        stream: _videoService.isVideoSaved(widget.video.id),
+                        builder: (context, snapshot) {
+                          final isSaved = snapshot.data ?? false;
+
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: isSaved
+                                  ? Colors.orange.withValues(alpha: 0.1)
+                                  : AppColors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(100),
+                            ),
+                            child: IconButton(
+                              icon: Icon(
+                                isSaved
+                                    ? Icons.bookmark
+                                    : Icons.bookmark_border,
+                                size: 20,
+                              ),
+                              color: isSaved ? Colors.orange : AppColors.primary,
+                              onPressed: () async {
+                                try {
+                                  await _videoService.toggleSaveVideo(
+                                    widget.video,
+                                  );
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          isSaved
+                                              ? 'Removed from saved videos'
+                                              : 'Added to saved videos',
+                                        ),
+                                        duration: const Duration(seconds: 2),
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Error: $e'),
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                minWidth: 40,
+                                minHeight: 40,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -186,7 +298,7 @@ class VideoCard extends StatelessWidget {
 
   Widget _buildLevelBadge() {
     Color levelColor;
-    switch (video.level.toLowerCase()) {
+    switch (widget.video.level.toLowerCase()) {
       case 'beginner':
         levelColor = Colors.green;
         break;
@@ -207,7 +319,7 @@ class VideoCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(100),
       ),
       child: Text(
-        video.level,
+        widget.video.level,
         style: GoogleFonts.beVietnamPro(
           fontSize: 10,
           fontWeight: FontWeight.w700,

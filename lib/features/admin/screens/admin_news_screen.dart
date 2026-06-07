@@ -21,6 +21,8 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
   bool _isLoading = true;
   List<NewsArticle> _filteredArticles = [];
   String _selectedCategory = 'All';
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   List<String> _categories = ['All'];
 
@@ -37,6 +39,12 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -60,7 +68,7 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
           dynamicCategories.sort();
 
           _categories = ['All', ...dynamicCategories];
-          _filteredArticles = articles;
+          _applyFilters(updateState: false);
           _isLoading = false;
         });
       }
@@ -170,6 +178,7 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
               (article) =>
           article.id == articleId,
         );
+        _applyFilters(updateState: false);
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -193,12 +202,20 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
   }
 
   void _filterArticles() {
-    if (_selectedCategory == 'All') {
-      _filteredArticles = _articles;
-    } else {
-      _filteredArticles = _articles.where((article) => article.category == _selectedCategory).toList();
-    }
-    setState(() {});
+    _applyFilters();
+  }
+
+  void _applyFilters({bool updateState = true}) {
+    final query = _searchQuery.toLowerCase().trim();
+    _filteredArticles = _articles.where((article) {
+      final matchesCategory =
+          _selectedCategory == 'All' || article.category == _selectedCategory;
+      final matchesSearch =
+          query.isEmpty || article.title.toLowerCase().contains(query);
+      return matchesCategory && matchesSearch;
+    }).toList();
+
+    if (updateState) setState(() {});
   }
 
   void _onCategorySelected(String category) {
@@ -206,34 +223,83 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
     _filterArticles();
   }
 
+  void _onSearchChanged(String value) {
+    _searchQuery = value;
+    _filterArticles();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final displayArticles = _selectedCategory == 'All'
-        ? _articles
-        : _articles.where((a) => a.category == _selectedCategory).toList();
-
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: SafeArea(
         child: Column(
           children: [
             _buildAdminHeader(),
+            _buildSearchBar(),
             _buildAdminCategoryFilter(),
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : RefreshIndicator(
                 onRefresh: _loadData,
-                child: displayArticles.isEmpty
+                child: _filteredArticles.isEmpty
                     ? const Center(child: Text('No articles found'))
                     : ListView.builder(
                   padding: const EdgeInsets.all(16),
-                  itemCount: displayArticles.length,
-                  itemBuilder: (context, index) => _buildAdminArticleCard(displayArticles[index]),
+                  itemCount: _filteredArticles.length,
+                  itemBuilder: (context, index) => _buildAdminArticleCard(_filteredArticles[index]),
                 ),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: TextField(
+        controller: _searchController,
+        onChanged: _onSearchChanged,
+        style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 14),
+        decoration: InputDecoration(
+          hintText: 'Search articles by title...',
+          hintStyle: TextStyle(color: Colors.grey[500], fontSize: 13),
+          prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary),
+          suffixIcon: _searchQuery.trim().isEmpty
+              ? null
+              : IconButton(
+                  icon: const Icon(
+                    Icons.clear_rounded,
+                    color: AppColors.primary,
+                  ),
+                  onPressed: () {
+                    _searchController.clear();
+                    _onSearchChanged('');
+                  },
+                ),
+          filled: true,
+          fillColor: const Color(0xFFF8F9FA),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 12,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade200),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade200),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.primary, width: 1.4),
+          ),
         ),
       ),
     );
@@ -294,7 +360,7 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
         itemBuilder: (context, index) {
           final isSelected = _selectedCategory == _categories[index];
           return GestureDetector(
-            onTap: () => setState(() => _selectedCategory = _categories[index]),
+            onTap: () => _onCategorySelected(_categories[index]),
             child: Container(
               margin: const EdgeInsets.only(right: 8),
               padding: const EdgeInsets.symmetric(horizontal: 16),

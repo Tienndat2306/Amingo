@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class GrammarTopic {
@@ -6,9 +7,18 @@ class GrammarTopic {
   final String description;
   final String level;
   final double progress;
-  final int lessonCount;
   final IconData icon;
   final DateTime createdAt;
+
+  // THÊM CÁC FIELD MỚI
+  final String theory;
+  final List<String> formulas;
+  final List<String> keywords;
+  final List<GrammarRule> rules;
+  final List<GrammarExample> examples;
+  final int quizCount;
+  final int passingScore;
+  final int estimatedTime;
 
   GrammarTopic({
     required this.id,
@@ -16,9 +26,16 @@ class GrammarTopic {
     required this.description,
     required this.level,
     this.progress = 0.0,
-    this.lessonCount = 0,
     required this.icon,
     required this.createdAt,
+    this.theory = '',
+    this.formulas = const [],
+    this.keywords = const [],
+    this.rules = const [],
+    this.examples = const [],
+    this.quizCount = 0,
+    this.passingScore = 70,
+    this.estimatedTime = 15,
   });
 
   factory GrammarTopic.fromJson(Map<String, dynamic> json) {
@@ -28,9 +45,22 @@ class GrammarTopic {
       description: json['description'] ?? '',
       level: json['level'] ?? 'Beginner',
       progress: (json['progress'] ?? 0).toDouble(),
-      lessonCount: json['lessonCount'] ?? 0,
       icon: _getIconFromString(json['icon'] ?? 'article'),
-      createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
+      createdAt: json['createdAt'] != null
+          ? (json['createdAt'] as Timestamp).toDate()
+          : DateTime.now(),
+      theory: json['theory'] ?? '',
+      formulas: List<String>.from(json['formulas'] ?? []),
+      keywords: List<String>.from(json['keywords'] ?? []),
+      rules: (json['rules'] as List?)
+          ?.map((e) => GrammarRule.fromJson(e))
+          .toList() ?? [],
+      examples: (json['examples'] as List?)
+          ?.map((e) => GrammarExample.fromJson(e))
+          .toList() ?? [],
+      quizCount: json['quizCount'] ?? 0,
+      passingScore: json['passingScore'] ?? 70,
+      estimatedTime: json['estimatedTime'] ?? 15,
     );
   }
 
@@ -41,9 +71,16 @@ class GrammarTopic {
       'description': description,
       'level': level,
       'progress': progress,
-      'lessonCount': lessonCount,
       'icon': _getStringFromIcon(icon),
-      'createdAt': createdAt.toIso8601String(),
+      'createdAt': Timestamp.fromDate(createdAt),
+      'theory': theory,
+      'formulas': formulas,
+      'keywords': keywords,
+      'rules': rules.map((e) => e.toJson()).toList(),
+      'examples': examples.map((e) => e.toJson()).toList(),
+      'quizCount': quizCount,
+      'passingScore': passingScore,
+      'estimatedTime': estimatedTime,
     };
   }
 
@@ -69,5 +106,79 @@ class GrammarTopic {
       case Icons.rule: return 'rule';
       default: return 'article';
     }
+  }
+}
+
+class GrammarRule {
+  final String title;
+  final String description;
+  final List<String> formulas;
+  final List<GrammarExample> examples;
+  final List<String> exceptions;
+  final List<String> notes;
+
+  GrammarRule({
+    required this.title,
+    required this.description,
+    this.formulas = const [],
+    this.examples = const [],
+    this.exceptions = const [],
+    this.notes = const [],
+  });
+
+  factory GrammarRule.fromJson(Map<String, dynamic> json) {
+    return GrammarRule(
+      title: json['title'] ?? '',
+      description: json['description'] ?? '',
+      formulas: List<String>.from(json['formulas'] ?? []),
+      examples: (json['examples'] as List?)
+          ?.map((e) => GrammarExample.fromJson(e))
+          .toList() ?? [],
+      exceptions: List<String>.from(json['exceptions'] ?? []),
+      notes: List<String>.from(json['notes'] ?? []),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'title': title,
+      'description': description,
+      'formulas': formulas,
+      'examples': examples.map((e) => e.toJson()).toList(),
+      'exceptions': exceptions,
+      'notes': notes,
+    };
+  }
+}
+
+class GrammarExample {
+  final String sentence;
+  final String meaning;
+  final bool isCorrect;
+  final String explanation;
+
+  GrammarExample({
+    required this.sentence,
+    required this.meaning,
+    this.isCorrect = true,
+    this.explanation = '',
+  });
+
+  factory GrammarExample.fromJson(Map<String, dynamic> json) {
+    return GrammarExample(
+      sentence: json['sentence'] ?? '',
+      meaning: json['meaning'] ?? '',
+      isCorrect: json['isCorrect'] ?? true,
+      explanation: json['explanation'] ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'sentence': sentence,
+      'meaning': meaning,
+      'isCorrect': isCorrect,
+      'explanation': explanation,
+    };
   }
 }

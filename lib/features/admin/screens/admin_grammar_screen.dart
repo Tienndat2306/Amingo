@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/grammar_topic.dart';
-import '../../../data/mock/mock_grammar.dart';
+import 'admin_grammar_form.dart';
 
 class AdminGrammarScreen extends StatefulWidget {
   const AdminGrammarScreen({super.key});
@@ -12,16 +13,17 @@ class AdminGrammarScreen extends StatefulWidget {
 }
 
 class _AdminGrammarScreenState extends State<AdminGrammarScreen> {
-  List<GrammarTopic> _topics = [];
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  List<Map<String, dynamic>> _topics = [];
   bool _isLoading = true;
 
-  final List<Color> _cardColors = [
-    const Color(0xFF42A5F5),  // Xanh dương - Present Simple
-    const Color(0xFF66BB6A),  // Xanh lá - Past Simple
-    const Color(0xFFFFA726),  // Cam - Future Simple
-    const Color(0xFFAB47BC),  // Tím - Present Continuous
-    const Color(0xFFEF5350),  // Đỏ - Prepositions
-    const Color(0xFF26C6DA),  // Xanh ngọc - Modal Verbs
+  final List<Color> _cardColors = const [
+    Color(0xFF42A5F5),
+    Color(0xFF66BB6A),
+    Color(0xFFFFA726),
+    Color(0xFFAB47BC),
+    Color(0xFFEF5350),
+    Color(0xFF26C6DA),
   ];
 
   @override
@@ -32,187 +34,311 @@ class _AdminGrammarScreenState extends State<AdminGrammarScreen> {
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 500));
-    _topics = MockGrammarData.getMockGrammarTopics();
-    setState(() => _isLoading = false);
+    try {
+      final snapshot = await _firestore.collection('grammar_topics').get();
+      _topics = snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return data;
+      }).toList();
+
+      debugPrint('Số lượng grammar topics: ${_topics.length}');
+      for (var topic in _topics) {
+        debugPrint('ID: ${topic['id']}, Title: ${topic['title']}');
+      }
+    } catch (e) {
+      debugPrint('Lỗi load grammar topics: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to load data: $e')));
+      }
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _deleteTopic(Map<String, dynamic> topic) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete topic'),
+        content: Text('Are you sure you want to delete "${topic['title']}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() => _isLoading = true);
+      try {
+        final questions = await _firestore
+            .collection('grammar_questions')
+            .where('topicId', isEqualTo: topic['id'])
+            .get();
+        for (var doc in questions.docs) {
+          await doc.reference.delete();
+        }
+
+        await _firestore.collection('grammar_topics').doc(topic['id']).delete();
+
+        await _loadData();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Deleted successfully!')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error: $e')));
+          setState(() => _isLoading = false);
+        }
+      }
+    }
+  }
+
+  void _editTopic(Map<String, dynamic> topic) {
+    final grammarTopic = GrammarTopic(
+      id: topic['id'],
+      title: topic['title'] ?? '',
+      description: topic['description'] ?? '',
+      level: topic['level'] ?? 'Beginner',
+      progress: (topic['progress'] ?? 0).toDouble(),
+      icon: Icons.article,
+      createdAt: (topic['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      theory: topic['theory'] ?? '',
+      formulas: List<String>.from(topic['formulas'] ?? []),
+      keywords: List<String>.from(topic['keywords'] ?? []),
+      rules:
+          (topic['rules'] as List?)
+              ?.map((e) => GrammarRule.fromJson(e))
+              .toList() ??
+          [],
+      examples: [],
+      quizCount: topic['quizCount'] ?? 0,
+      passingScore: topic['passingScore'] ?? 70,
+      estimatedTime: topic['estimatedTime'] ?? 15,
+    );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AdminGrammarForm(topic: grammarTopic),
+      ),
+    ).then((_) => _loadData());
   }
 
   void _addTopic() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Add grammar topic feature coming soon')),
-    );
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AdminGrammarForm()),
+    ).then((_) => _loadData());
   }
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final crossAxisCount = screenWidth > 900 ? 3 : (screenWidth > 600 ? 2 : 1);
-    final cardWidth = (screenWidth - 72) / crossAxisCount;
-
     return Column(
       children: [
-        // Header
-        Container(
-          padding: const EdgeInsets.all(24),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.all(16),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Grammar Topics',
+                'Grammar Management',
                 style: GoogleFonts.plusJakartaSans(
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: AppColors.textPrimary,
                 ),
               ),
+              const SizedBox(width: 16),
               ElevatedButton.icon(
                 onPressed: _addTopic,
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Add Topic'),
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Add topic'),
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                 ),
               ),
             ],
           ),
         ),
 
-        // Content
         Expanded(
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())
-              : SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              alignment: WrapAlignment.start,
-              children: _topics.asMap().entries.map((entry) {
-                final index = entry.key;
-                final topic = entry.value;
-                final cardColor = _cardColors[index % _cardColors.length];
-                return SizedBox(
-                  width: cardWidth,
-                  child: _buildTopicCard(topic, cardColor),
-                );
-              }).toList(),
-            ),
-          ),
+              : RefreshIndicator(
+                  onRefresh: _loadData,
+                  child: _topics.isEmpty
+                      ? const Center(
+                          child: Text('No topics yet. Tap + to add one.'),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          itemCount: _topics.length,
+                          itemBuilder: (context, index) {
+                            final topic = _topics[index];
+                            final cardColor =
+                                _cardColors[index % _cardColors.length];
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _buildTopicCard(topic, cardColor),
+                            );
+                          },
+                        ),
+                ),
         ),
       ],
     );
   }
 
-  Widget _buildTopicCard(GrammarTopic topic, Color cardColor) {
+  Widget _buildTopicCard(Map<String, dynamic> topic, Color cardColor) {
+    final progress = (topic['progress'] ?? 0).toDouble();
+    final level = topic['level'] ?? 'Beginner';
+    final title = topic['title'] ?? '';
+    final description = topic['description'] ?? '';
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
+            blurRadius: 4,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
         children: [
-          // Header
           Container(
-            height: 80,
+            width: 80,
             decoration: BoxDecoration(
               color: cardColor,
               borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
+                topLeft: Radius.circular(12),
+                bottomLeft: Radius.circular(12),
               ),
             ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.article, color: Colors.white, size: 22),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+          Expanded(
             child: Padding(
               padding: const EdgeInsets.all(12),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 45,
-                    height: 45,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(topic.icon, color: Colors.white, size: 28),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          topic.title,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
                           style: GoogleFonts.plusJakartaSans(
-                            fontSize: 16,
+                            fontSize: 15,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: AppColors.textPrimary,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${topic.lessonCount} lessons • ${topic.level}',
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.edit,
+                          color: Colors.blue,
+                          size: 18,
+                        ),
+                        onPressed: () => _editTopic(topic),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        tooltip: 'Edit',
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete,
+                          color: Colors.red,
+                          size: 18,
+                        ),
+                        onPressed: () => _deleteTopic(topic),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        tooltip: 'Delete',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    style: GoogleFonts.beVietnamPro(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: cardColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          level,
                           style: GoogleFonts.beVietnamPro(
-                            fontSize: 11,
-                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                            color: cardColor,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                   ),
                 ],
               ),
-            ),
-          ),
-          // Body
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  topic.description,
-                  style: GoogleFonts.beVietnamPro(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Icon(Icons.trending_up, size: 14, color: cardColor),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${(topic.progress * 100).toInt()}% completed',
-                      style: GoogleFonts.beVietnamPro(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: cardColor,
-                      ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-                      onPressed: () {},
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
-                ),
-              ],
             ),
           ),
         ],

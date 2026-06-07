@@ -50,7 +50,11 @@ class CompletionDialog extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildStatColumn('$correctAnswers', 'Correct', AppColors.success),
-              _buildStatColumn('$incorrectAnswers', 'Incorrect', AppColors.error),
+              _buildStatColumn(
+                '$incorrectAnswers',
+                'Incorrect',
+                AppColors.error,
+              ),
             ],
           ),
         ],
@@ -60,7 +64,9 @@ class CompletionDialog extends StatelessWidget {
           onPressed: onFinish,
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(100),
+            ),
           ),
           child: const Text('Finish'),
         ),

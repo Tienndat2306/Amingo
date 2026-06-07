@@ -21,9 +21,13 @@ class ResultSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isCorrect ? AppColors.success.withValues(alpha: 0.1) : AppColors.error.withValues(alpha: 0.1),
+        color: isCorrect
+            ? AppColors.success.withValues(alpha: 0.1)
+            : AppColors.error.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isCorrect ? AppColors.success : AppColors.error),
+        border: Border.all(
+          color: isCorrect ? AppColors.success : AppColors.error,
+        ),
       ),
       child: Column(
         children: [

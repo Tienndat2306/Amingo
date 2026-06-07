@@ -3,11 +3,19 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/widgets/loading_widget.dart';
+import '../../../data/models/video_lesson.dart';
+import '../../video/screens/video_player_screen.dart';
 import 'empty_state_widget.dart';
 
 class SavedVideosTab extends StatelessWidget {
   final String userId;
-  const SavedVideosTab({super.key, required this.userId});
+  final String searchQuery;
+
+  const SavedVideosTab({
+    super.key,
+    required this.userId,
+    this.searchQuery = '',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +37,20 @@ class SavedVideosTab extends StatelessWidget {
           );
         }
 
-        final videoDocs = snapshot.data!.docs;
+        final query = searchQuery.toLowerCase().trim();
+        final videoDocs = snapshot.data!.docs.where((doc) {
+          if (query.isEmpty) return true;
+          final data = doc.data() as Map<String, dynamic>;
+          final title = data['title']?.toString().toLowerCase() ?? '';
+          return title.contains(query);
+        }).toList();
+
+        if (videoDocs.isEmpty) {
+          return const EmptyStateWidget(
+            icon: Icons.search_off,
+            message: 'No saved videos match your search.',
+          );
+        }
 
         return ListView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -40,7 +61,13 @@ class SavedVideosTab extends StatelessWidget {
 
             final String title = data['title'] ?? 'Untitled Video';
             final String duration = data['duration'] ?? '00:00';
-            final String thumbnailUrl = data['thumbnailUrl'] ?? '';
+            final String thumbnailUrl =
+                data['thumbnailUrl'] ?? data['thumbnail'] ?? '';
+            final video = VideoLesson.fromJson({
+              ...data,
+              'id': data['id'] ?? doc.id,
+              'thumbnail': thumbnailUrl,
+            });
 
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
@@ -91,7 +118,7 @@ class SavedVideosTab extends StatelessWidget {
                   padding: const EdgeInsets.only(top: 4),
                   child: Row(
                     children: [
-                      const Icon(Icons.access_time, size: 12, color: AppColors.textSecondary),
+                      const Icon(Icons.done_all, size: 12, color: AppColors.textSecondary),
                       const SizedBox(width: 4),
                       Text(
                         duration,
@@ -107,7 +134,12 @@ class SavedVideosTab extends StatelessWidget {
                   },
                 ),
                 onTap: () {
-                  // Điều hướng mở màn hình xem video phát bài học của bạn tại đây
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => VideoPlayerScreen(video: video),
+                    ),
+                  );
                 },
               ),
             );

@@ -1,26 +1,23 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/vocabulary_word.dart';
-import '../../../data/mock/mock_vocabulary.dart';
+import '../../../data/models/vocabulary_set.dart';
 import '../widgets/flashcard.dart';
-import '../widgets/question_section.dart';
-import '../widgets/result_section.dart';
-import '../widgets/lesson_progress_indicator.dart';
-import '../widgets/completion_dialog.dart';
 
 class LessonScreen extends StatefulWidget {
-  final String title;
-  final String category;
-  final int totalWords;
-  final int learnedCount;
+  final VocabularySet vocabularySet;
+  final List<VocabularyWord> words;
+  final Set<String> masteredIds;
 
   const LessonScreen({
     super.key,
-    required this.title,
-    required this.category,
-    required this.totalWords,
-    required this.learnedCount,
+    required this.vocabularySet,
+    required this.words,
+    required this.masteredIds,
   });
 
   @override
@@ -28,126 +25,389 @@ class LessonScreen extends StatefulWidget {
 }
 
 class _LessonScreenState extends State<LessonScreen> {
-  int _currentIndex = 0;
-  bool _isFlipped = false;
-  bool _isAnswered = false;
-  String? _selectedAnswer;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  List<VocabularyWord> _words = [];
-  int _correctAnswers = 0;
-  int _incorrectAnswers = 0;
+  List<VocabularyWord> _currentSessionWords = [];
+  int _currentIndex = 0;
+  int _learnedCount = 0;
+  bool _isLoading = true;
+  bool _isCompleted = false;
+  String? _error;
+  final Set<String> _learnedInSession = {};
+  bool _isReviewMode = false;
 
   @override
   void initState() {
     super.initState();
-    _loadVocabularyData();
+    _loadData();
   }
 
-  void _loadVocabularyData() {
-    _words = MockVocabularyData.getMockVocabularyWords();
-  }
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
 
-  void _handleAnswer(String answer, String correctAnswer) {
-    if (_selectedAnswer != null) return;
+      if (userId != null) {
+        final completedDoc = await _firestore
+            .collection('user_progress')
+            .doc(userId)
+            .collection('completed_topics')
+            .doc(widget.vocabularySet.id)
+            .get();
 
-    setState(() {
-      _selectedAnswer = answer;
-      _isAnswered = true;
-      if (answer == correctAnswer) {
-        _correctAnswers++;
-      } else {
-        _incorrectAnswers++;
+        if (completedDoc.exists) {
+          _isReviewMode = true;
+          _currentSessionWords = List.from(widget.words);
+          _learnedCount = widget.words.length;
+          setState(() => _isLoading = false);
+          return;
+        }
       }
-    });
-  }
 
-  void _nextWord() {
-    final isLastWord = _currentIndex == _words.length - 1;
+      _currentSessionWords = widget.words
+          .where((word) => !widget.masteredIds.contains(word.id))
+          .toList();
 
-    if (isLastWord) {
-      _showCompletionDialog();
-    } else {
+      _learnedCount = widget.words.length - _currentSessionWords.length;
+
+      if (_currentSessionWords.isEmpty &&
+          widget.words.isNotEmpty &&
+          !_isReviewMode) {
+        _isCompleted = true;
+        if (userId != null) {
+          await _markTopicCompleted(userId);
+        }
+      }
+
+      setState(() => _isLoading = false);
+    } catch (e) {
       setState(() {
-        _currentIndex++;
-        _isFlipped = false;
-        _isAnswered = false;
-        _selectedAnswer = null;
+        _error = e.toString();
+        _isLoading = false;
       });
     }
   }
 
-  void _showCompletionDialog() {
-    final score = (_correctAnswers / _words.length * 100).toInt();
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => CompletionDialog(
-        score: score,
-        correctAnswers: _correctAnswers,
-        incorrectAnswers: _incorrectAnswers,
-        onFinish: () => Navigator.pop(context),
-      ),
-    );
+  Future<void> _markTopicCompleted(String userId) async {
+    await _firestore
+        .collection('user_progress')
+        .doc(userId)
+        .collection('completed_topics')
+        .doc(widget.vocabularySet.id)
+        .set({
+          'topicId': widget.vocabularySet.id,
+          'title': widget.vocabularySet.title,
+          'type': 'vocabulary',
+          'completedAt': FieldValue.serverTimestamp(),
+          'percentage': 100,
+          'totalWords': widget.words.length,
+        });
+
+    await _firestore
+        .collection('vocabulary_sets')
+        .doc(widget.vocabularySet.id)
+        .update({'learnedCount': widget.words.length});
   }
 
-  void _showExitDialog() {
-    showDialog(
+  Future<void> _saveWordMastery(String userId, VocabularyWord word) async {
+    await _firestore
+        .collection('user_progress')
+        .doc(userId)
+        .collection('vocabulary')
+        .doc(word.id)
+        .set({
+          'wordId': word.id,
+          'setId': widget.vocabularySet.id,
+          'topicId': widget.vocabularySet.id,
+          'isMastered': true,
+          'masteredAt': FieldValue.serverTimestamp(),
+          'lastReviewed': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+  }
+
+  void _handleKnow() {
+    if (_currentSessionWords.isEmpty) return;
+
+    if (_isReviewMode) {
+      setState(() {
+        _currentSessionWords.removeAt(_currentIndex);
+        if (_currentIndex >= _currentSessionWords.length &&
+            _currentSessionWords.isNotEmpty) {
+          _currentIndex = 0;
+        }
+      });
+      return;
+    }
+
+    final word = _currentSessionWords[_currentIndex];
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+
+    _learnedInSession.add(word.id);
+    if (userId != null) {
+      unawaited(_saveWordMastery(userId, word));
+    }
+
+    setState(() {
+      _currentSessionWords.removeAt(_currentIndex);
+      _learnedCount++;
+
+      if (_currentSessionWords.isEmpty) {
+        _isCompleted = true;
+        if (userId != null) {
+          _markTopicCompleted(userId);
+        }
+      } else if (_currentIndex >= _currentSessionWords.length &&
+          _currentSessionWords.isNotEmpty) {
+        _currentIndex = 0;
+      }
+    });
+  }
+
+  void _handleDontKnow() {
+    if (_currentSessionWords.isEmpty) return;
+
+    setState(() {
+      final wordToRelearn = _currentSessionWords.removeAt(_currentIndex);
+      _currentSessionWords.add(wordToRelearn);
+
+      if (_currentSessionWords.isNotEmpty &&
+          _currentIndex >= _currentSessionWords.length) {
+        _currentIndex = 0;
+      }
+    });
+  }
+
+  Future<void> _resetProgress() async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Exit Review',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        content: Text(
-          'Your progress will be lost. Are you sure you want to exit?',
-          style: GoogleFonts.beVietnamPro(
-            fontSize: 14,
-            color: AppColors.textSecondary,
-          ),
-        ),
+        title: const Text('Reset progress'),
+        content: Text('Are you sure you want to restart from the beginning?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.beVietnamPro(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-              ),
-            ),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text('Exit'),
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Reset'),
           ),
         ],
       ),
     );
+
+    if (confirmed == true && mounted) {
+      setState(() => _isLoading = true);
+      try {
+        await _firestore
+            .collection('user_progress')
+            .doc(userId)
+            .collection('completed_topics')
+            .doc(widget.vocabularySet.id)
+            .delete();
+
+        final masteredWords = await _firestore
+            .collection('user_progress')
+            .doc(userId)
+            .collection('vocabulary')
+            .where('setId', isEqualTo: widget.vocabularySet.id)
+            .get();
+        for (final doc in masteredWords.docs) {
+          await doc.reference.delete();
+        }
+
+        await _firestore
+            .collection('vocabulary_sets')
+            .doc(widget.vocabularySet.id)
+            .update({'learnedCount': 0});
+
+        _learnedInSession.clear();
+        _isReviewMode = false;
+        _isCompleted = false;
+
+        await _loadData();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Progress has been reset!')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error: $e')));
+          setState(() => _isLoading = false);
+        }
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_words.isEmpty) {
+    if (_isLoading) {
       return const Scaffold(
         backgroundColor: AppColors.background,
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
-    final currentWord = _words[_currentIndex];
+    if (_error != null) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(child: Text('Error: $_error')),
+      );
+    }
+
+    if (_isCompleted && !_isReviewMode) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+          elevation: 0,
+          automaticallyImplyLeading: false,
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.emoji_events,
+                    size: 60,
+                    color: AppColors.success,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Congratulations!',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'You have completed this topic',
+                  style: GoogleFonts.beVietnamPro(
+                    fontSize: 16,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '"${widget.vocabularySet.title}"',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'Progress: 100% (${widget.words.length}/${widget.words.length} words)',
+                    style: GoogleFonts.beVietnamPro(
+                      color: AppColors.success,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () => Navigator.pop(context, true),
+                      icon: const Icon(Icons.arrow_back),
+                      label: const Text('Back'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    OutlinedButton.icon(
+                      onPressed: _resetProgress,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Restart from beginning'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_currentSessionWords.isEmpty) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.warning, size: 64, color: Colors.orange),
+              const SizedBox(height: 16),
+              Text(
+                'No vocabulary words in this topic yet',
+                style: GoogleFonts.beVietnamPro(
+                  fontSize: 16,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Back'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final currentWord = _currentSessionWords[_currentIndex];
+    final progress = _isReviewMode
+        ? 100
+        : (_learnedCount / widget.words.length * 100).round();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -156,95 +416,46 @@ class _LessonScreenState extends State<LessonScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close, color: AppColors.primary),
-          onPressed: _showExitDialog,
+          onPressed: () => Navigator.pop(context),
         ),
         title: Column(
           children: [
             Text(
-              widget.title,
+              widget.vocabularySet.title,
               style: GoogleFonts.plusJakartaSans(
-                fontSize: 18,
+                fontSize: 16,
                 fontWeight: FontWeight.w800,
                 color: AppColors.textPrimary,
               ),
             ),
             Text(
-              'Review Session',
+              _isReviewMode
+                  ? 'Review mode'
+                  : 'Learned: $_learnedCount/${widget.words.length} words',
               style: GoogleFonts.beVietnamPro(
-                fontSize: 12,
+                fontSize: 11,
                 color: AppColors.textSecondary,
               ),
             ),
           ],
         ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.volume_up, color: AppColors.primary),
-            onPressed: () {},
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(4),
+          child: LinearProgressIndicator(
+            value: progress / 100,
+            backgroundColor: Colors.grey.shade200,
+            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.success),
           ),
-          const SizedBox(width: 8),
-        ],
+        ),
       ),
-      body: Column(
-        children: [
-          LessonProgressIndicator(
-            currentIndex: _currentIndex,
-            totalWords: _words.length,
-            correctAnswers: _correctAnswers,
-            incorrectAnswers: _incorrectAnswers,
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: Flashcard(
-                      word: currentWord,
-                      isFlipped: _isFlipped,
-                      onFlip: () => setState(() => _isFlipped = !_isFlipped),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  if (!_isAnswered)
-                    QuestionSection(
-                      word: currentWord,
-                      selectedAnswer: _selectedAnswer,
-                      onAnswer: (answer) => _handleAnswer(answer, currentWord.correctAnswer),
-                    ),
-                  if (_isAnswered)
-                    ResultSection(
-                      selectedAnswer: _selectedAnswer!,
-                      correctAnswer: currentWord.correctAnswer,
-                      example: currentWord.example,
-                    ),
-                  const SizedBox(height: 20),
-                  if (_isAnswered)
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _nextWord,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
-                        ),
-                        child: Text(
-                          _currentIndex == _words.length - 1 ? 'Complete Session' : 'Next Word',
-                          style: GoogleFonts.beVietnamPro(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ],
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Flashcard(
+          word: currentWord,
+          onKnow: _handleKnow,
+          onDontKnow: _handleDontKnow,
+        ),
       ),
     );
   }

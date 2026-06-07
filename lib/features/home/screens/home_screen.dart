@@ -17,6 +17,7 @@ import '../../news/screens/news_screen.dart';
 import '../../profile/screens/profile_screen.dart';
 import 'package:provider/provider.dart';
 import '../../../core/providers/user_provider.dart';
+import '../../listening/screens/listening_topics_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -138,7 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Expanded(child: NewsCard(onTap: () => _navigateTo(const NewsScreen()))),
               const SizedBox(width: 16),
-              Expanded(child: ListeningCard(onTap: () => _navigateTo(const ListeningScreen()))),
+              Expanded(child: ListeningCard(onTap: () => _navigateTo(const ListeningTopicsScreen()))),
             ],
           ),
         ),

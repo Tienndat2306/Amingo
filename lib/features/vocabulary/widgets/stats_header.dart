@@ -33,14 +33,29 @@ class StatsHeader extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildStatItem('$totalWords', 'Total Words', Icons.menu_book),
-          _buildStatItem('$learnedWords', 'Learned', Icons.check_circle, AppColors.success),
-          _buildStatItem('${(progress * 100).toInt()}%', 'Progress', Icons.trending_up, AppColors.warning),
+          _buildStatItem(
+            '$learnedWords',
+            'Learned',
+            Icons.check_circle,
+            AppColors.success,
+          ),
+          _buildStatItem(
+            '${(progress * 100).toInt()}%',
+            'Progress',
+            Icons.trending_up,
+            AppColors.warning,
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildStatItem(String value, String label, IconData icon, [Color? color]) {
+  Widget _buildStatItem(
+    String value,
+    String label,
+    IconData icon, [
+    Color? color,
+  ]) {
     return Column(
       children: [
         Icon(icon, size: 28, color: color ?? AppColors.primary),

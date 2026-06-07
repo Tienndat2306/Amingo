@@ -46,3 +46,4 @@ app.*.map.json
 
 # Custom Backend Secrets
 backend/extract_articles/firebase_key.json
+backend/my_key.json

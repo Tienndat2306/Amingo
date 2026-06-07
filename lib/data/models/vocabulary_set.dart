@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'vocabulary_word.dart';
 
 class VocabularySet {
@@ -28,17 +29,17 @@ class VocabularySet {
 
   factory VocabularySet.fromJson(Map<String, dynamic> json) {
     return VocabularySet(
-      id: json['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      id: json['id'] ?? '',
       title: json['title'] ?? '',
       wordCount: json['wordCount'] ?? 0,
       learnedCount: json['learnedCount'] ?? 0,
       level: json['level'] ?? 'Beginner',
       icon: _getIconFromString(json['icon'] ?? 'school'),
       color: json['color'] ?? 0xFFFFA726,
-      words: (json['words'] as List?)
-          ?.map((e) => VocabularyWord.fromJson(e))
-          .toList() ?? [],
-      createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
+      words: [],
+      createdAt: json['createdAt'] != null
+          ? (json['createdAt'] as Timestamp).toDate()
+          : DateTime.now(),
     );
   }
 
@@ -51,8 +52,7 @@ class VocabularySet {
       'level': level,
       'icon': _getStringFromIcon(icon),
       'color': color,
-      'words': words.map((e) => e.toJson()).toList(),
-      'createdAt': createdAt.toIso8601String(),
+      'createdAt': Timestamp.fromDate(createdAt),
     };
   }
 

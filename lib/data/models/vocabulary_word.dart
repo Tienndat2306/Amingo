@@ -1,8 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class VocabularyWord {
   final String id;
   final String word;
   final String meaning;
   final String example;
+  final String exampleMeaning;
   final String pronunciation;
   final String imageUrl;
   final List<String> options;
@@ -10,12 +13,14 @@ class VocabularyWord {
   final String category;
   final String level;
   final DateTime createdAt;
+  final String setId;
 
   VocabularyWord({
     required this.id,
     required this.word,
     required this.meaning,
     required this.example,
+    required this.exampleMeaning,
     required this.pronunciation,
     required this.imageUrl,
     required this.options,
@@ -23,6 +28,7 @@ class VocabularyWord {
     required this.category,
     required this.level,
     required this.createdAt,
+    required this.setId,
   });
 
   factory VocabularyWord.fromJson(Map<String, dynamic> json) {
@@ -31,13 +37,17 @@ class VocabularyWord {
       word: json['word'] ?? '',
       meaning: json['meaning'] ?? '',
       example: json['example'] ?? '',
+      exampleMeaning: json['exampleMeaning'] ?? '',
       pronunciation: json['pronunciation'] ?? '',
       imageUrl: json['imageUrl'] ?? '',
       options: List<String>.from(json['options'] ?? []),
       correctAnswer: json['correctAnswer'] ?? '',
       category: json['category'] ?? '',
       level: json['level'] ?? 'Beginner',
-      createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
+      createdAt: json['createdAt'] != null
+          ? (json['createdAt'] as Timestamp).toDate()
+          : DateTime.now(),
+      setId: json['setId'] ?? '',
     );
   }
 
@@ -47,13 +57,15 @@ class VocabularyWord {
       'word': word,
       'meaning': meaning,
       'example': example,
+      'exampleMeaning': exampleMeaning,
       'pronunciation': pronunciation,
       'imageUrl': imageUrl,
       'options': options,
       'correctAnswer': correctAnswer,
       'category': category,
       'level': level,
-      'createdAt': createdAt.toIso8601String(),
+      'createdAt': Timestamp.fromDate(createdAt),
+      'setId': setId,
     };
   }
 }
